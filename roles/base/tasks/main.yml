@@ -1,13 +1,47 @@
 ---
-# Rol `base`: preparación común del sistema, sin la que nada más funciona bien.
-# Pensado para ejecutarse el PRIMERO en site.yml.
-#
-# Aquí irán tareas como:
-#   - actualizar el índice de paquetes (apt update)
-#   - instalar utilidades comunes (curl, gnupg, ca-certificates…)
-#   - asegurar la zona horaria / locale
-#   - configurar el firewall básico (más adelante)
+# Rol `base`: preparación común del sistema.
+# Se ejecuta el PRIMERO en site.yml. Sin esto, los demás roles podrían fallar
+# al intentar añadir repos o descargar dependencias.
 
-- name: "[base] Placeholder — sustituir por las tareas reales"
-  ansible.builtin.debug:
-    msg: "Rol base todavía vacío. Aquí irá la configuración base del sistema."
+# ─── 1. Salvaguarda: confirmar que estamos en Ubuntu ──────────────────────────
+# Si por error se aplica este playbook a otra distro (Debian puro, CentOS…),
+# preferimos un mensaje claro a una instalación rota a medias.
+- name: "[base] Comprobar que la distro es Ubuntu"
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+    fail_msg: >-
+      Este playbook está pensado para Ubuntu.
+      Distro detectada: {{ ansible_distribution }} {{ ansible_distribution_version }}.
+    success_msg: >-
+      Distro válida: Ubuntu {{ ansible_distribution_version }}
+      ({{ ansible_distribution_release }}).
+
+# ─── 2. Refrescar el índice de paquetes apt ───────────────────────────────────
+# `cache_valid_time: 3600` evita repetir el `apt update` si ya se hizo en la
+# última hora — acelera reejecuciones del playbook.
+- name: "[base] Actualizar índice de paquetes apt"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 3. Instalar utilidades base ──────────────────────────────────────────────
+# Estos paquetes los necesitan los roles siguientes (sobre todo `chirpstack`
+# para añadir el repo apt oficial con su clave GPG).
+- name: "[base] Instalar utilidades base ({{ base_packages | join(', ') }})"
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+# ─── 4. Asegurar la zona horaria ──────────────────────────────────────────────
+# Importante para que los logs y los timestamps de ChirpStack tengan sentido.
+# Si la TZ actual ya coincide, esta tarea reporta `ok` (idempotente).
+- name: "[base] Comprobar zona horaria actual"
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: tz_actual
+  changed_when: false
+
+- name: "[base] Establecer zona horaria a {{ base_timezone }}"
+  ansible.builtin.command: "timedatectl set-timezone {{ base_timezone }}"
+  when: tz_actual.stdout != base_timezone
+  changed_when: true

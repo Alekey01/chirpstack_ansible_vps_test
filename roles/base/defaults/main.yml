@@ -1,6 +1,19 @@
 ---
-# Valores por defecto de las variables del rol `base`.
+# Valores por defecto del rol `base`.
 # Estos valores se usan si NADIE los sobreescribe en group_vars/host_vars.
-# Tienen la prioridad más baja en Ansible, lo cual es perfecto para "defaults".
-#
-# De momento vacío.
+# Tienen la prioridad más baja en Ansible — perfecto para "defaults".
+
+# Zona horaria del servidor. Cambia a la del cliente si despliegas para él.
+# Lista: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+base_timezone: "Europe/Madrid"
+
+# Paquetes mínimos que necesita el resto del stack (añadir repos, descargar
+# claves GPG, detectar versión, etc.). NO incluye Postgres/Redis/etc — eso va
+# en sus propios roles.
+base_packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - apt-transport-https
