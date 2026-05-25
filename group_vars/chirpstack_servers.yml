@@ -20,3 +20,11 @@ chirpstack_puerto_web: 8080
 # ─── Versiones (rellenar cuando confirmemos compatibilidad con la VPS) ────────
 # chirpstack_version: "4.x"
 # postgresql_version: "16"
+
+# ─── Repositorio apt oficial de ChirpStack ────────────────────────────────────
+# Compartido entre los roles `chirpstack_gateway_bridge` y `chirpstack`.
+# Lo definimos aquí (en group_vars) para no duplicarlo en cada rol.
+chirpstack_apt_key_url: "https://artifacts.chirpstack.io/packages/chirpstack.key"
+chirpstack_apt_keyring: "/etc/apt/keyrings/chirpstack.gpg"
+chirpstack_apt_repo_url: "https://artifacts.chirpstack.io/packages/4.x/deb"
+chirpstack_apt_repo_components: "stable main"

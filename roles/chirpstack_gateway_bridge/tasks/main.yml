@@ -1,14 +1,59 @@
 ---
 # Rol `chirpstack_gateway_bridge`: traduce el protocolo de los gateways LoRa
-# (UDP "Semtech Packet Forwarder" u otros) a mensajes MQTT que ChirpStack entiende.
-# Se instala normalmente en el mismo servidor que ChirpStack (al menos en pruebas).
+# (UDP Semtech Packet Forwarder) a MQTT que ChirpStack entiende.
 #
-# Aquí irán tareas como:
-#   - asegurar que el repo apt de ChirpStack está añadido (se hará en el rol chirpstack)
-#   - instalar el paquete `chirpstack-gateway-bridge`
-#   - desplegar /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge.toml
-#   - arrancar y habilitar el servicio
+# Tras este rol tendremos:
+#   - El repo apt oficial de ChirpStack añadido (clave GPG + sources.list)
+#   - El paquete `chirpstack-gateway-bridge` instalado
+#   - Servicio activo y habilitado
+#
+# Nota: las variables `chirpstack_apt_*` viven en group_vars/chirpstack_servers.yml
+# porque el rol `chirpstack` (siguiente) las comparte. Así si la URL del repo
+# cambia, se actualiza en un solo sitio.
 
-- name: "[gateway-bridge] Placeholder — sustituir por las tareas reales"
-  ansible.builtin.debug:
-    msg: "Rol chirpstack_gateway_bridge todavía vacío."
+# ─── 1. Repo apt: clave GPG ───────────────────────────────────────────────────
+# /etc/apt/keyrings/ es la ubicación moderna recomendada por Debian/Ubuntu para
+# claves de repos de terceros. Antes se usaba /etc/apt/trusted.gpg.d (deprecado).
+
+- name: "[gateway-bridge] Asegurar que existe /etc/apt/keyrings"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# La clave se publica en formato ASCII armored (.key). apt necesita la versión
+# binaria (.gpg), así que la "desarmaduramos" con `gpg --dearmor`.
+# `creates:` da idempotencia: si el fichero ya existe, la tarea no se reejecuta.
+- name: "[gateway-bridge] Descargar y desarmar la clave GPG de ChirpStack"
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ chirpstack_apt_key_url }} | gpg --dearmor > {{ chirpstack_apt_keyring }}"
+    creates: "{{ chirpstack_apt_keyring }}"
+
+# ─── 2. Repo apt: sources.list ────────────────────────────────────────────────
+# `apt_repository` genera /etc/apt/sources.list.d/chirpstack.list y refresca el
+# índice (update_cache: true). El `signed-by=` indica a apt qué clave debe
+# usar para verificar las firmas de este repo concreto.
+- name: "[gateway-bridge] Añadir repo apt de ChirpStack"
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by={{ chirpstack_apt_keyring }}] {{ chirpstack_apt_repo_url }} {{ chirpstack_apt_repo_components }}"
+    filename: chirpstack
+    state: present
+    update_cache: true
+
+# ─── 3. Paquete ───────────────────────────────────────────────────────────────
+- name: "[gateway-bridge] Instalar chirpstack-gateway-bridge"
+  ansible.builtin.apt:
+    name: chirpstack-gateway-bridge
+    state: present
+
+# ─── 4. Servicio ──────────────────────────────────────────────────────────────
+# Usamos la configuración por defecto del paquete (apunta ya a MQTT en
+# tcp://127.0.0.1:1883). Cuando llegue el gateway físico y haya que cambiar
+# la banda LoRa o el listener UDP, añadiremos un template en este rol.
+- name: "[gateway-bridge] Asegurar servicio activo y habilitado"
+  ansible.builtin.service:
+    name: chirpstack-gateway-bridge
+    state: started
+    enabled: true
