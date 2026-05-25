@@ -22,22 +22,34 @@
     enabled: true
 
 # ─── 3. Comprobación: NO expuesto a internet ──────────────────────────────────
-# Verificamos que Redis está escuchando solo en 127.0.0.1. Si alguna vez se
-# cambia `bind` a 0.0.0.0 sin autenticación, cualquiera puede borrar la BD.
-# Usamos `ss` (sustituto moderno de netstat) para inspeccionar.
-- name: "[redis] Verificar que Redis solo escucha en {{ redis_bind }}"
-  ansible.builtin.shell: "ss -tlnp | grep ':{{ redis_port }} ' || true"
+# Si por error se pone `bind 0.0.0.0` en redis.conf sin autenticación, cualquiera
+# en internet puede borrar la BD. Aquí verificamos que Redis solo escucha en
+# localhost (IPv4 127.0.0.1 e IPv6 ::1, ambos son loopback y son aceptables).
+#
+# `ss -tlnH` lista sockets TCP en escucha, sin cabecera. La columna 4 es la
+# "Local Address:Port" — la única que importa para saber dónde escucha.
+# La 5ª columna ("Peer Address") siempre es 0.0.0.0:* para LISTEN: NO es
+# la dirección de escucha, es el filtro de qué clientes acepta. Por eso un
+# `grep '0.0.0.0'` ingenuo da falsos positivos.
+
+- name: "[redis] Obtener direcciones donde escucha Redis"
+  ansible.builtin.shell:
+    cmd: "ss -tlnH | awk '{print $4}' | grep ':{{ redis_port }}$' || true"
   register: redis_listen
   changed_when: false
 
-- name: "[redis] Mostrar puertos donde escucha Redis (informativo)"
+- name: "[redis] Mostrar direcciones de escucha (informativo)"
   ansible.builtin.debug:
-    var: redis_listen.stdout_lines
+    msg: "Redis escucha en: {{ redis_listen.stdout_lines }}"
 
-- name: "[redis] Avisar si Redis escucha fuera de localhost"
+# Permitimos 127.0.0.1 (IPv4 loopback) y [::1] (IPv6 loopback). Cualquier otra
+# dirección hace fallar el playbook con un mensaje claro.
+- name: "[redis] Fallar si Redis está expuesto fuera de localhost"
   ansible.builtin.fail:
     msg: >-
-      Redis está escuchando en una IP distinta a {{ redis_bind }}.
-      Salida de ss: {{ redis_listen.stdout }}
-      Revisa /etc/redis/redis.conf y el parámetro `bind`.
-  when: redis_listen.stdout is search('0.0.0.0') or redis_listen.stdout is search('::')
+      Redis está escuchando en "{{ item }}" — fuera de localhost.
+      Revisa /etc/redis/redis.conf parámetro `bind` y reinicia el servicio.
+  loop: "{{ redis_listen.stdout_lines }}"
+  when:
+    - not (item is match('^127\.0\.0\.1:'))
+    - not (item is match('^\[::1\]:'))
