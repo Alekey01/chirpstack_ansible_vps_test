@@ -1,0 +1,45 @@
+{#
+  Plantilla del fichero principal de configuración de ChirpStack v4.
+  Destino: /etc/chirpstack/chirpstack.toml
+  Generado por Ansible. NO editar a mano.
+#}
+# Configuración de ChirpStack v4 (gestionada por Ansible).
+# Rol: roles/chirpstack
+
+[logging]
+  level = "info"
+  log_to_syslog = false
+
+# ── PostgreSQL ───────────────────────────────────────────────────────────────
+[postgresql]
+  dsn = "postgres://{{ postgresql_db_user }}:{{ postgresql_db_password }}@localhost/{{ postgresql_db_name }}?sslmode=disable"
+  max_open_connections = 10
+  min_idle_connections = 0
+
+# ── Redis ────────────────────────────────────────────────────────────────────
+[redis]
+  servers = ["redis://localhost/"]
+  cluster = false
+
+# ── Red LoRaWAN ──────────────────────────────────────────────────────────────
+[network]
+  net_id = "000000"
+  enabled_regions = ["{{ chirpstack_region }}"]
+
+# ── API (UI web + gRPC) ──────────────────────────────────────────────────────
+[api]
+  bind = "0.0.0.0:{{ chirpstack_puerto_web }}"
+  secret = "{{ chirpstack_api_secret }}"
+
+# ── Conexión al broker MQTT (donde escucha el gateway-bridge) ────────────────
+[gateway]
+
+[gateway.backend]
+  enabled = "mqtt"
+
+[gateway.backend.mqtt]
+  server = "tcp://localhost:1883"
+  username = ""
+  password = ""
+  qos = 0
+  clean_session = true

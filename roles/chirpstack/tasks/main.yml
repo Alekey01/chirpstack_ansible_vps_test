@@ -1,16 +1,79 @@
 ---
-# Rol `chirpstack`: el servidor ChirpStack en sí (Network Server + Application Server
-# unificados desde la v4). Es la UI web que verá el cliente y el cerebro que decodifica
-# los uplinks de los devices y los enruta a las aplicaciones.
+# Rol `chirpstack`: servidor ChirpStack v4 (Network Server + Application Server
+# en un solo binario). Es la UI web que verá el cliente.
 #
-# Aquí irán tareas como:
-#   - añadir la clave GPG y el repo apt oficial de ChirpStack
-#   - instalar el paquete `chirpstack`
-#   - desplegar /etc/chirpstack/chirpstack.toml (apuntando a Postgres, Redis y MQTT)
-#   - desplegar /etc/chirpstack/region_*.toml según la banda LoRaWAN
-#   - arrancar y habilitar el servicio
-#   - verificar que la UI responde en el puerto chirpstack_puerto_web
+# Tras este rol tendremos:
+#   - Repo apt configurado (idempotente: si ya está, no toca nada)
+#   - Paquete `chirpstack` instalado
+#   - /etc/chirpstack/chirpstack.toml renderizado desde plantilla
+#   - Servicio activo escuchando en :8080
+#   - Verificación: el puerto responde
+#
+# Las variables `postgresql_db_*` se cargan automáticamente desde el rol
+# `postgresql` aunque ejecutes solo `--tags chirpstack`: Ansible carga los
+# `defaults/main.yml` de TODOS los roles del play antes de filtrar por tags.
 
-- name: "[chirpstack] Placeholder — sustituir por las tareas reales"
-  ansible.builtin.debug:
-    msg: "Rol chirpstack todavía vacío. Aquí va el repo apt + paquete + configs."
+# ─── 1. Repo apt: clave GPG ───────────────────────────────────────────────────
+# Idempotente: si el rol gateway_bridge ya añadió todo esto, estas tareas son no-op.
+
+- name: "[chirpstack] Asegurar que existe /etc/apt/keyrings"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "[chirpstack] Descargar y desarmar la clave GPG de ChirpStack"
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ chirpstack_apt_key_url }} | gpg --dearmor > {{ chirpstack_apt_keyring }}"
+    creates: "{{ chirpstack_apt_keyring }}"
+
+- name: "[chirpstack] Añadir repo apt de ChirpStack"
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by={{ chirpstack_apt_keyring }}] {{ chirpstack_apt_repo_url }} {{ chirpstack_apt_repo_components }}"
+    filename: chirpstack
+    state: present
+    update_cache: true
+
+# ─── 2. Paquete ───────────────────────────────────────────────────────────────
+- name: "[chirpstack] Instalar el paquete chirpstack"
+  ansible.builtin.apt:
+    name: chirpstack
+    state: present
+
+# ─── 3. Configuración ─────────────────────────────────────────────────────────
+# `no_log: true` evita que la contraseña de Postgres y el api_secret aparezcan
+# en la salida del playbook si la plantilla cambia.
+- name: "[chirpstack] Desplegar /etc/chirpstack/chirpstack.toml"
+  ansible.builtin.template:
+    src: chirpstack.toml.j2
+    dest: /etc/chirpstack/chirpstack.toml
+    owner: root
+    group: root
+    mode: "0640"          # legible por root y chirpstack (grupo); no por el mundo
+  notify: Reiniciar chirpstack
+  no_log: true
+
+# ─── 4. Servicio ──────────────────────────────────────────────────────────────
+- name: "[chirpstack] Asegurar que el servicio está activo y habilitado"
+  ansible.builtin.service:
+    name: chirpstack
+    state: started
+    enabled: true
+
+# Forzamos que los handlers pendientes (p.ej. "Reiniciar chirpstack" si el TOML
+# cambió) se ejecuten AHORA, antes de la verificación. Sin esto, el `wait_for`
+# correría contra una instancia con config vieja.
+- name: "[chirpstack] Ejecutar handlers pendientes antes de verificar"
+  ansible.builtin.meta: flush_handlers
+
+# ─── 5. Verificación: el puerto responde ──────────────────────────────────────
+# Esperamos hasta 30s a que el puerto esté escuchando. Si no, fallamos con
+# mensaje claro.
+- name: "[chirpstack] Verificar que la UI escucha en el puerto {{ chirpstack_puerto_web }}"
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ chirpstack_puerto_web }}"
+    timeout: 30
+    state: started

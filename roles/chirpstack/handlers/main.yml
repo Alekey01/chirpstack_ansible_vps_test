@@ -1,3 +1,8 @@
 ---
-# Handler típico: reiniciar chirpstack cuando cambie chirpstack.toml o región.
-# De momento vacío.
+# Handlers del rol `chirpstack`.
+# Reiniciar es necesario cuando cambia chirpstack.toml o cualquier region_*.toml.
+
+- name: Reiniciar chirpstack
+  ansible.builtin.service:
+    name: chirpstack
+    state: restarted

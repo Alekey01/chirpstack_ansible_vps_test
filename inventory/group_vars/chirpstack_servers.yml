@@ -32,3 +32,17 @@ chirpstack_apt_key_url: "https://artifacts.chirpstack.io/packages/chirpstack.key
 chirpstack_apt_keyring: "/etc/apt/keyrings/chirpstack.gpg"
 chirpstack_apt_repo_url: "https://artifacts.chirpstack.io/packages/4.x/deb"
 chirpstack_apt_repo_components: "stable main"
+
+# ─── Configuración del servidor ChirpStack ────────────────────────────────────
+# Región LoRaWAN activa. Lista oficial:
+#   eu868  → Europa (España, lo nuestro)
+#   us915_0/_1 → EEUU
+#   as923  → Asia
+#   au915  → Australia
+# Hay que ENCAJAR la región con la del gateway físico. Si no, no se entienden.
+chirpstack_region: "eu868"
+
+# Secreto que ChirpStack usa para firmar JWTs/sessions de la API.
+# 🔒 PROVISIONAL: cuando todo funcione, generaremos uno random con
+# `openssl rand -base64 32` y lo moveremos a ansible-vault.
+chirpstack_api_secret: "cambia_este_secreto_chirpstack_temporal"
