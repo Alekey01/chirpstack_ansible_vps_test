@@ -1,14 +1,62 @@
 ---
-# Rol `postgresql`: base de datos relacional que ChirpStack usa para persistir
-# usuarios, devices, aplicaciones, integraciones, etc.
+# Rol `postgresql`: base de datos relacional de ChirpStack.
 #
-# Aquí irán tareas como:
-#   - instalar el paquete `postgresql`
-#   - arrancar y habilitar el servicio
-#   - crear la base de datos `chirpstack`
-#   - crear el usuario `chirpstack` con su contraseña
-#   - activar la extensión `pg_trgm` (requerida por ChirpStack)
+# Tras este rol tendremos:
+#   - PostgreSQL instalado y corriendo
+#   - Usuario `chirpstack` (rol Postgres) con su contraseña
+#   - BD `chirpstack` propiedad de ese usuario
+#   - Extensión `pg_trgm` activada dentro de esa BD
+#
+# Nota sobre `become_user: postgres`: por defecto en Ubuntu, PostgreSQL usa
+# autenticación "peer" para conexiones locales — solo el usuario del SO llamado
+# `postgres` puede conectarse como superusuario de la BD. Por eso saltamos a
+# ese usuario para las tareas administrativas.
 
-- name: "[postgresql] Placeholder — sustituir por las tareas reales"
-  ansible.builtin.debug:
-    msg: "Rol postgresql todavía vacío."
+# ─── 1. Paquetes ──────────────────────────────────────────────────────────────
+- name: "[postgresql] Instalar PostgreSQL y el driver Python"
+  ansible.builtin.apt:
+    name:
+      - postgresql           # servidor de la BD
+      - python3-psycopg2     # driver que usan los módulos Ansible para hablar con PG
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 2. Servicio ──────────────────────────────────────────────────────────────
+- name: "[postgresql] Asegurar que el servicio está activo y habilitado"
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
+
+# ─── 3. Usuario de BD ─────────────────────────────────────────────────────────
+# `no_log: true` evita que la contraseña aparezca en la salida del playbook.
+- name: "[postgresql] Crear/actualizar usuario de BD para ChirpStack"
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_db_user }}"
+    password: "{{ postgresql_db_password }}"
+    state: present
+  become: true
+  become_user: postgres
+  no_log: true
+
+# ─── 4. Base de datos ─────────────────────────────────────────────────────────
+- name: "[postgresql] Crear base de datos para ChirpStack"
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_db_name }}"
+    owner: "{{ postgresql_db_user }}"
+    encoding: UTF-8
+    state: present
+  become: true
+  become_user: postgres
+
+# ─── 5. Extensiones ───────────────────────────────────────────────────────────
+# Las extensiones se activan POR BD, no globalmente. Por eso se pasa `db`.
+- name: "[postgresql] Activar extensiones en la BD ({{ postgresql_extensions | join(', ') }})"
+  community.postgresql.postgresql_ext:
+    name: "{{ item }}"
+    db: "{{ postgresql_db_name }}"
+    state: present
+  loop: "{{ postgresql_extensions }}"
+  become: true
+  become_user: postgres

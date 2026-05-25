@@ -1,3 +1,14 @@
 ---
-# Handlers típicos del rol postgresql: reiniciar / recargar el servicio.
-# De momento vacío.
+# Handlers del rol `postgresql`.
+# Un handler SOLO se ejecuta si una tarea lo "notifica" con `notify:`.
+# Lo dejamos declarado para cuando empecemos a tocar `postgresql.conf` o `pg_hba.conf`.
+
+- name: Reiniciar postgresql
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+
+- name: Recargar postgresql
+  ansible.builtin.service:
+    name: postgresql
+    state: reloaded
