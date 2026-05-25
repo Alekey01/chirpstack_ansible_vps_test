@@ -1,3 +1,7 @@
 ---
-# Handler típico: reiniciar chirpstack-gateway-bridge cuando cambie su .toml.
-# De momento vacío.
+# Handlers del rol `chirpstack_gateway_bridge`.
+
+- name: Reiniciar chirpstack-gateway-bridge
+  ansible.builtin.service:
+    name: chirpstack-gateway-bridge
+    state: restarted

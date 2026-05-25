@@ -48,10 +48,39 @@
     name: chirpstack-gateway-bridge
     state: present
 
-# ─── 4. Servicio ──────────────────────────────────────────────────────────────
-# Usamos la configuración por defecto del paquete (apunta ya a MQTT en
-# tcp://127.0.0.1:1883). Cuando llegue el gateway físico y haya que cambiar
-# la banda LoRa o el listener UDP, añadiremos un template en este rol.
+# ─── 4. Ajustar topics MQTT para incluir el prefijo de región ─────────────────
+# Por defecto el paquete publica en `gateway/EUI/event/...` (sin región).
+# ChirpStack v4 espera `{region}/gateway/EUI/event/...` para soportar
+# multi-región. Si no coincide, ChirpStack nunca asocia los stats y el gateway
+# aparece "Never seen" para siempre.
+#
+# Usamos `lineinfile` (cirugía mínima sobre el fichero del paquete) en vez de
+# reescribir todo el toml: así mantenemos las defaults internas del bridge.
+# `{% raw %}` evita que Jinja2 intente expandir `{{ .GatewayID }}`, que es
+# sintaxis Go template y debe llegar LITERAL al fichero.
+- name: "[gateway-bridge] Ajustar event_topic_template (con region prefix)"
+  ansible.builtin.lineinfile:
+    path: /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge.toml
+    regexp: '^\s*event_topic_template\s*='
+    line: '  event_topic_template="{{ chirpstack_region }}/gateway/{% raw %}{{ .GatewayID }}/event/{{ .EventType }}{% endraw %}"'
+  notify: Reiniciar chirpstack-gateway-bridge
+
+- name: "[gateway-bridge] Ajustar state_topic_template (con region prefix)"
+  ansible.builtin.lineinfile:
+    path: /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge.toml
+    regexp: '^\s*state_topic_template\s*='
+    line: '  state_topic_template="{{ chirpstack_region }}/gateway/{% raw %}{{ .GatewayID }}/state/{{ .StateType }}{% endraw %}"'
+    insertafter: '^\s*event_topic_template\s*='
+  notify: Reiniciar chirpstack-gateway-bridge
+
+- name: "[gateway-bridge] Ajustar command_topic_template (con region prefix)"
+  ansible.builtin.lineinfile:
+    path: /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge.toml
+    regexp: '^\s*command_topic_template\s*='
+    line: '  command_topic_template="{{ chirpstack_region }}/gateway/{% raw %}{{ .GatewayID }}/command/#{% endraw %}"'
+  notify: Reiniciar chirpstack-gateway-bridge
+
+# ─── 5. Servicio ──────────────────────────────────────────────────────────────
 - name: "[gateway-bridge] Asegurar servicio activo y habilitado"
   ansible.builtin.service:
     name: chirpstack-gateway-bridge
