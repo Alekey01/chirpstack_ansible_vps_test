@@ -2,7 +2,11 @@
 # Variables compartidas por TODOS los hosts del grupo `chirpstack_servers`.
 # Ansible las inyecta automáticamente en cualquier tarea/plantilla que las use.
 #
-# Aquí van datos que afectan al stack entero o que conviene tener centralizados.
+# UBICACIÓN: este fichero vive junto al inventario (inventory/group_vars/) porque
+# así Ansible lo carga automáticamente. Si se pone en la raíz del proyecto, NO
+# se carga cuando el inventario está en una subcarpeta — ese fue un bug real
+# que nos costó un fallo en producción del rol gateway_bridge.
+#
 # Las variables específicas de cada componente viven en `roles/<rol>/defaults/main.yml`.
 #
 # Buenas prácticas:
