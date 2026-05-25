@@ -1,0 +1,17 @@
+# Ficheros temporales y de editor
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Vault de Ansible (NUNCA subir contraseñas en claro)
+vault_pass.txt
+*.vault
+
+# Carpetas locales que Ansible u OneDrive puedan crear
+.retry
+*.retry
+
+# Configuración local de Claude Code (no compartir)
+.claude/

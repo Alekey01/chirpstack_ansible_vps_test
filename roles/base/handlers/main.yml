@@ -1,0 +1,6 @@
+---
+# Handlers del rol `base`.
+# Un handler es una acción que SOLO se ejecuta si una tarea la "notifica" tras un cambio.
+# Ejemplo típico: reiniciar un servicio cuando cambia su fichero de configuración.
+#
+# De momento vacío.

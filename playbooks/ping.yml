@@ -1,0 +1,10 @@
+---
+# Playbook de prueba: comprueba que Ansible puede conectarse a los servidores.
+# Ejecútalo (más adelante, cuando tengas un servidor en el inventario) con:
+#   ansible-playbook playbooks/ping.yml
+- name: Verificar conectividad con los servidores ChirpStack
+  hosts: chirpstack_servers
+  gather_facts: false
+  tasks:
+    - name: Hacer ping a los hosts
+      ansible.builtin.ping:

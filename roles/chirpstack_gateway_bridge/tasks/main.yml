@@ -1,0 +1,14 @@
+---
+# Rol `chirpstack_gateway_bridge`: traduce el protocolo de los gateways LoRa
+# (UDP "Semtech Packet Forwarder" u otros) a mensajes MQTT que ChirpStack entiende.
+# Se instala normalmente en el mismo servidor que ChirpStack (al menos en pruebas).
+#
+# Aquí irán tareas como:
+#   - asegurar que el repo apt de ChirpStack está añadido (se hará en el rol chirpstack)
+#   - instalar el paquete `chirpstack-gateway-bridge`
+#   - desplegar /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge.toml
+#   - arrancar y habilitar el servicio
+
+- name: "[gateway-bridge] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol chirpstack_gateway_bridge todavía vacío."

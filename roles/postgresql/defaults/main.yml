@@ -1,0 +1,6 @@
+---
+# Variables por defecto del rol postgresql.
+# Cuando llegue el momento, aquí pondremos cosas como:
+#   postgresql_db: chirpstack
+#   postgresql_user: chirpstack
+#   postgresql_password: "{{ vault_postgresql_password }}"   # cifrado con ansible-vault

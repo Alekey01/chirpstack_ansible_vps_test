@@ -1,0 +1,34 @@
+---
+# Playbook MAESTRO: orquesta el despliegue completo de ChirpStack.
+#
+# Ejecutar (desde la raíz del proyecto, en la VPS):
+#   ansible-playbook playbooks/site.yml
+#
+# Para ejecutar solo una parte usa --tags. Ejemplos:
+#   ansible-playbook playbooks/site.yml --tags base
+#   ansible-playbook playbooks/site.yml --tags redis,postgresql
+#
+# El ORDEN de los roles importa: ChirpStack necesita Postgres, Redis y Mosquitto
+# funcionando antes de arrancar.
+
+- name: Desplegar stack ChirpStack
+  hosts: chirpstack_servers
+  gather_facts: true        # recopila datos del SO (versión Ubuntu, etc.) — los roles los usan
+  roles:
+    - role: base
+      tags: [base]
+
+    - role: postgresql
+      tags: [postgresql, db]
+
+    - role: redis
+      tags: [redis, cache]
+
+    - role: mosquitto
+      tags: [mosquitto, mqtt]
+
+    - role: chirpstack_gateway_bridge
+      tags: [gateway_bridge, chirpstack]
+
+    - role: chirpstack
+      tags: [chirpstack, app]

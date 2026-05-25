@@ -1,0 +1,22 @@
+---
+# Variables compartidas por TODOS los hosts del grupo `chirpstack_servers`.
+# Ansible las inyecta automáticamente en cualquier tarea/plantilla que las use.
+#
+# Aquí van datos que afectan al stack entero o que conviene tener centralizados.
+# Las variables específicas de cada componente viven en `roles/<rol>/defaults/main.yml`.
+#
+# Buenas prácticas:
+# - Pon aquí lo que cambiarías al pasar del entorno de pruebas (VPS) al equipo del cliente.
+# - NO pongas contraseñas en claro: cuando llegue el momento usaremos `ansible-vault`.
+
+# ─── Identidad del despliegue ─────────────────────────────────────────────────
+proyecto_nombre: chirpstack-iot
+entorno: pruebas             # pruebas | cliente
+
+# ─── Red ──────────────────────────────────────────────────────────────────────
+# Puerto en el que la UI web de ChirpStack escucha. Por defecto 8080.
+chirpstack_puerto_web: 8080
+
+# ─── Versiones (rellenar cuando confirmemos compatibilidad con la VPS) ────────
+# chirpstack_version: "4.x"
+# postgresql_version: "16"

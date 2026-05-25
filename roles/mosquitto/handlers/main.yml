@@ -1,0 +1,3 @@
+---
+# Handler típico: reiniciar mosquitto cuando cambie mosquitto.conf.
+# De momento vacío.

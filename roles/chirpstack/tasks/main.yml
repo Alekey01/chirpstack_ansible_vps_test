@@ -1,0 +1,16 @@
+---
+# Rol `chirpstack`: el servidor ChirpStack en sí (Network Server + Application Server
+# unificados desde la v4). Es la UI web que verá el cliente y el cerebro que decodifica
+# los uplinks de los devices y los enruta a las aplicaciones.
+#
+# Aquí irán tareas como:
+#   - añadir la clave GPG y el repo apt oficial de ChirpStack
+#   - instalar el paquete `chirpstack`
+#   - desplegar /etc/chirpstack/chirpstack.toml (apuntando a Postgres, Redis y MQTT)
+#   - desplegar /etc/chirpstack/region_*.toml según la banda LoRaWAN
+#   - arrancar y habilitar el servicio
+#   - verificar que la UI responde en el puerto chirpstack_puerto_web
+
+- name: "[chirpstack] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol chirpstack todavía vacío. Aquí va el repo apt + paquete + configs."

@@ -1,0 +1,13 @@
+---
+# Rol `mosquitto`: broker MQTT. Es el "buzón" por el que el gateway-bridge y el
+# servidor ChirpStack se intercambian los mensajes de los gateways LoRa.
+#
+# Aquí irán tareas como:
+#   - instalar el paquete `mosquitto` y `mosquitto-clients`
+#   - configurar listener (puerto 1883 local; TLS si toca)
+#   - habilitar autenticación con usuarios (más adelante)
+#   - arrancar y habilitar el servicio
+
+- name: "[mosquitto] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol mosquitto todavía vacío."

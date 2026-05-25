@@ -1,0 +1,3 @@
+---
+# Handlers típicos del rol redis: reiniciar el servicio si cambia la config.
+# De momento vacío.

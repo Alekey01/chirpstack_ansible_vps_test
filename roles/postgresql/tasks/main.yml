@@ -1,0 +1,14 @@
+---
+# Rol `postgresql`: base de datos relacional que ChirpStack usa para persistir
+# usuarios, devices, aplicaciones, integraciones, etc.
+#
+# Aquí irán tareas como:
+#   - instalar el paquete `postgresql`
+#   - arrancar y habilitar el servicio
+#   - crear la base de datos `chirpstack`
+#   - crear el usuario `chirpstack` con su contraseña
+#   - activar la extensión `pg_trgm` (requerida por ChirpStack)
+
+- name: "[postgresql] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol postgresql todavía vacío."

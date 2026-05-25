@@ -1,0 +1,13 @@
+---
+# Rol `base`: preparación común del sistema, sin la que nada más funciona bien.
+# Pensado para ejecutarse el PRIMERO en site.yml.
+#
+# Aquí irán tareas como:
+#   - actualizar el índice de paquetes (apt update)
+#   - instalar utilidades comunes (curl, gnupg, ca-certificates…)
+#   - asegurar la zona horaria / locale
+#   - configurar el firewall básico (más adelante)
+
+- name: "[base] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol base todavía vacío. Aquí irá la configuración base del sistema."

@@ -1,0 +1,12 @@
+---
+# Rol `redis`: caché en memoria usada por ChirpStack para sesiones, contadores y
+# colas internas.
+#
+# Aquí irán tareas como:
+#   - instalar el paquete `redis-server`
+#   - arrancar y habilitar el servicio
+#   - asegurar que escucha solo en localhost (no expuesto a internet)
+
+- name: "[redis] Placeholder — sustituir por las tareas reales"
+  ansible.builtin.debug:
+    msg: "Rol redis todavía vacío."

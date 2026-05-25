@@ -1,0 +1,5 @@
+---
+# Variables por defecto del rol chirpstack. Ejemplos a futuro:
+#   chirpstack_region: "eu868"
+#   chirpstack_bind_http: "0.0.0.0:8080"
+#   chirpstack_secret: "{{ vault_chirpstack_secret }}"

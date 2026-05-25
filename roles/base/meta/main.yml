@@ -1,0 +1,4 @@
+---
+# Metadatos del rol. `dependencies` declara otros roles que deben ejecutarse antes.
+# Lo dejamos vacío y orquestamos el orden desde site.yml (más explícito para empezar).
+dependencies: []

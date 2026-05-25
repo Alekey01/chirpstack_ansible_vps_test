@@ -1,0 +1,4 @@
+---
+# Variables por defecto del rol mosquitto. Ejemplos a futuro:
+#   mosquitto_listener_port: 1883
+#   mosquitto_allow_anonymous: false

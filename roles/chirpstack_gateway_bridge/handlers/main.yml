@@ -1,0 +1,3 @@
+---
+# Handler típico: reiniciar chirpstack-gateway-bridge cuando cambie su .toml.
+# De momento vacío.

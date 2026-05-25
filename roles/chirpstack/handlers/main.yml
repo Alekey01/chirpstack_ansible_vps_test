@@ -1,0 +1,3 @@
+---
+# Handler típico: reiniciar chirpstack cuando cambie chirpstack.toml o región.
+# De momento vacío.

@@ -1,0 +1,4 @@
+---
+# Variables por defecto del rol chirpstack_gateway_bridge. Ejemplos a futuro:
+#   gateway_bridge_region: "eu868"      # banda LoRaWAN (EU868, US915, AS923…)
+#   gateway_bridge_udp_port: 1700

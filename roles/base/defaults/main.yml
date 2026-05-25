@@ -1,0 +1,6 @@
+---
+# Valores por defecto de las variables del rol `base`.
+# Estos valores se usan si NADIE los sobreescribe en group_vars/host_vars.
+# Tienen la prioridad más baja en Ansible, lo cual es perfecto para "defaults".
+#
+# De momento vacío.
