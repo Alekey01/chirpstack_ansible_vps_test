@@ -1,13 +1,59 @@
 ---
-# Rol `mosquitto`: broker MQTT. Es el "buzón" por el que el gateway-bridge y el
-# servidor ChirpStack se intercambian los mensajes de los gateways LoRa.
+# Rol `mosquitto`: broker MQTT que conecta el chirpstack-gateway-bridge con el
+# servidor chirpstack.
 #
-# Aquí irán tareas como:
-#   - instalar el paquete `mosquitto` y `mosquitto-clients`
-#   - configurar listener (puerto 1883 local; TLS si toca)
-#   - habilitar autenticación con usuarios (más adelante)
-#   - arrancar y habilitar el servicio
+# Tras este rol tendremos:
+#   - mosquitto instalado y corriendo
+#   - listener en 127.0.0.1:1883 (configurable via variables)
+#   - reinicio automático del servicio si cambia la config (handler)
 
-- name: "[mosquitto] Placeholder — sustituir por las tareas reales"
+# ─── 1. Paquetes ──────────────────────────────────────────────────────────────
+- name: "[mosquitto] Instalar broker y cliente"
+  ansible.builtin.apt:
+    name:
+      - mosquitto           # el broker en sí
+      - mosquitto-clients   # mosquitto_sub / mosquitto_pub para probar a mano
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 2. Configuración (plantilla Jinja2) ──────────────────────────────────────
+# `template` renderiza el .j2 sustituyendo las variables y lo deposita en destino.
+# Si el contenido difiere del actual, marca `changed` y notifica al handler.
+- name: "[mosquitto] Desplegar /etc/mosquitto/conf.d/chirpstack.conf"
+  ansible.builtin.template:
+    src: chirpstack.conf.j2
+    dest: /etc/mosquitto/conf.d/chirpstack.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar mosquitto
+
+# ─── 3. Servicio ──────────────────────────────────────────────────────────────
+- name: "[mosquitto] Asegurar que el servicio está activo y habilitado"
+  ansible.builtin.service:
+    name: mosquitto
+    state: started
+    enabled: true
+
+# ─── 4. Comprobación: NO expuesto fuera de localhost ──────────────────────────
+# Misma lógica que el rol `redis`: parseamos solo la columna 4 de `ss`.
+- name: "[mosquitto] Obtener direcciones donde escucha Mosquitto"
+  ansible.builtin.shell:
+    cmd: "ss -tlnH | awk '{print $4}' | grep ':{{ mosquitto_listener_port }}$' || true"
+  register: mosquitto_listen
+  changed_when: false
+
+- name: "[mosquitto] Mostrar direcciones de escucha (informativo)"
   ansible.builtin.debug:
-    msg: "Rol mosquitto todavía vacío."
+    msg: "Mosquitto escucha en: {{ mosquitto_listen.stdout_lines }}"
+
+- name: "[mosquitto] Fallar si Mosquitto está expuesto fuera de localhost"
+  ansible.builtin.fail:
+    msg: >-
+      Mosquitto está escuchando en "{{ item }}" — fuera de localhost.
+      Revisa la variable `mosquitto_bind_address` del rol mosquitto.
+  loop: "{{ mosquitto_listen.stdout_lines }}"
+  when:
+    - not (item is match('^127\.0\.0\.1:'))
+    - not (item is match('^\[::1\]:'))

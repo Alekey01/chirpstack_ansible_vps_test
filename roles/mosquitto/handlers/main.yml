@@ -1,3 +1,11 @@
 ---
-# Handler típico: reiniciar mosquitto cuando cambie mosquitto.conf.
-# De momento vacío.
+# Handlers del rol `mosquitto`.
+# Un handler solo se ejecuta si una tarea lo notifica con `notify:` Y esa tarea
+# reportó `changed`. Si ejecutas el playbook dos veces sin cambios, el handler
+# NO se dispara la segunda vez — ese es el comportamiento idempotente que
+# queremos.
+
+- name: Reiniciar mosquitto
+  ansible.builtin.service:
+    name: mosquitto
+    state: restarted
