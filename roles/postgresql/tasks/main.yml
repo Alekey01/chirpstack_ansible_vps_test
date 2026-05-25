@@ -55,7 +55,7 @@
 - name: "[postgresql] Activar extensiones en la BD ({{ postgresql_extensions | join(', ') }})"
   community.postgresql.postgresql_ext:
     name: "{{ item }}"
-    db: "{{ postgresql_db_name }}"
+    login_db: "{{ postgresql_db_name }}"   # antes era `db:`, ahora `login_db:` (la doc lo renombró)
     state: present
   loop: "{{ postgresql_extensions }}"
   become: true

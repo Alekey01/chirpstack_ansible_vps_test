@@ -1,12 +1,43 @@
 ---
-# Rol `redis`: caché en memoria usada por ChirpStack para sesiones, contadores y
-# colas internas.
+# Rol `redis`: caché en memoria usada por ChirpStack para sesiones, contadores
+# y colas internas.
 #
-# Aquí irán tareas como:
-#   - instalar el paquete `redis-server`
-#   - arrancar y habilitar el servicio
-#   - asegurar que escucha solo en localhost (no expuesto a internet)
+# Tras este rol tendremos:
+#   - Redis instalado y corriendo
+#   - Escuchando solo en localhost (default de Ubuntu, lo verificamos)
 
-- name: "[redis] Placeholder — sustituir por las tareas reales"
+# ─── 1. Paquete ───────────────────────────────────────────────────────────────
+- name: "[redis] Instalar redis-server"
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 2. Servicio ──────────────────────────────────────────────────────────────
+- name: "[redis] Asegurar que el servicio está activo y habilitado"
+  ansible.builtin.service:
+    name: redis-server
+    state: started
+    enabled: true
+
+# ─── 3. Comprobación: NO expuesto a internet ──────────────────────────────────
+# Verificamos que Redis está escuchando solo en 127.0.0.1. Si alguna vez se
+# cambia `bind` a 0.0.0.0 sin autenticación, cualquiera puede borrar la BD.
+# Usamos `ss` (sustituto moderno de netstat) para inspeccionar.
+- name: "[redis] Verificar que Redis solo escucha en {{ redis_bind }}"
+  ansible.builtin.shell: "ss -tlnp | grep ':{{ redis_port }} ' || true"
+  register: redis_listen
+  changed_when: false
+
+- name: "[redis] Mostrar puertos donde escucha Redis (informativo)"
   ansible.builtin.debug:
-    msg: "Rol redis todavía vacío."
+    var: redis_listen.stdout_lines
+
+- name: "[redis] Avisar si Redis escucha fuera de localhost"
+  ansible.builtin.fail:
+    msg: >-
+      Redis está escuchando en una IP distinta a {{ redis_bind }}.
+      Salida de ss: {{ redis_listen.stdout }}
+      Revisa /etc/redis/redis.conf y el parámetro `bind`.
+  when: redis_listen.stdout is search('0.0.0.0') or redis_listen.stdout is search('::')

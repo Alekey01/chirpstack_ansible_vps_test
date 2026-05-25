@@ -1,4 +1,8 @@
 ---
-# Variables por defecto del rol redis. Ejemplos a futuro:
-#   redis_bind: "127.0.0.1"
-#   redis_port: 6379
+# Variables por defecto del rol `redis`.
+# ChirpStack se conecta a Redis en localhost:6379 sin contraseña, así que con
+# los valores por defecto de Ubuntu nos basta. Las variables están aquí por si
+# en el futuro hay que cambiar el bind o el puerto.
+
+redis_bind: "127.0.0.1"   # IMPORTANTE: NO poner 0.0.0.0; Redis sin auth en internet = catástrofe
+redis_port: 6379
