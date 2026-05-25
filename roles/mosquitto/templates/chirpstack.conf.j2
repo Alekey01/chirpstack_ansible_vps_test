@@ -1,12 +1,8 @@
 {#
   Plantilla Jinja2 para /etc/mosquitto/conf.d/chirpstack.conf
-  Generado por Ansible — NO editar a mano (los cambios se perderían en el
-  siguiente `ansible-playbook`). Para modificar, edita las variables del rol.
-
-  Sintaxis Jinja2 que usamos aquí:
-    {{ variable }}              → sustituye por el valor de la variable
-    {{ 'a' if cond else 'b' }}  → expresión condicional
-    {# comentario #}            → no aparece en el fichero final
+  Generado por Ansible. NO editar a mano: los cambios se perderían en el
+  siguiente ansible-playbook. Para modificar, edita las variables del rol
+  en roles/mosquitto/defaults/main.yml.
 #}
 # Configuración de Mosquitto para ChirpStack (gestionada por Ansible).
 # Rol: roles/mosquitto
@@ -15,6 +11,6 @@
 listener {{ mosquitto_listener_port }} {{ mosquitto_bind_address }}
 
 # Conexión sin usuario/contraseña. ACEPTABLE solo si el listener está atado a
-# localhost. Si expones el listener fuera de localhost, pon esto a `false` y
-# configura `password_file`.
+# localhost. Si expones el listener fuera de localhost, pon esto a false y
+# configura password_file.
 allow_anonymous {{ 'true' if mosquitto_allow_anonymous else 'false' }}
