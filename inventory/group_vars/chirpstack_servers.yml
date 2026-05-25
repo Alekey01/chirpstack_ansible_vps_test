@@ -39,13 +39,19 @@ chirpstack_apt_repo_url: "https://artifacts.chirpstack.io/packages/4.x/deb"
 chirpstack_apt_repo_components: "stable main"
 
 # ─── Configuración del servidor ChirpStack ────────────────────────────────────
-# Región LoRaWAN activa. Lista oficial:
-#   eu868  → Europa (España, lo nuestro)
-#   us915_0/_1 → EEUU
-#   as923  → Asia
-#   au915  → Australia
+# Región LoRaWAN activa. Lista oficial (sub-bandas para US915):
+#   eu868     → Europa (España, lo "correcto" si el gateway es europeo)
+#   us915_0   → EEUU sub-band 1 (canales 0-7)   ← lo más común
+#   us915_1   → EEUU sub-band 2 (canales 8-15)
+#   ...       hasta us915_7
+#   as923     → Asia
+#   au915     → Australia
+#
 # Hay que ENCAJAR la región con la del gateway físico. Si no, no se entienden.
-chirpstack_region: "eu868"
+# Actualmente apuntamos a us915_1 (Sub-band 2) porque el gateway de pruebas
+# Milesight UG63-L08GL-915M es hardware US915 configurado con Sub-band 2.
+# Cuando llegue un gateway europeo, volver a "eu868".
+chirpstack_region: "us915_1"
 
 # Secreto que ChirpStack usa para firmar JWTs/sessions de la API.
 # 🔒 PROVISIONAL: cuando todo funcione, generaremos uno random con
