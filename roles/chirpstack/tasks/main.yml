@@ -50,8 +50,9 @@
     src: chirpstack.toml.j2
     dest: /etc/chirpstack/chirpstack.toml
     owner: root
-    group: root
-    mode: "0640"          # legible por root y chirpstack (grupo); no por el mundo
+    group: chirpstack     # el binario se ejecuta como usuario `chirpstack`,
+    mode: "0640"          # así que el grupo SÍ tiene que ser `chirpstack`
+                          # para poder leer (0640 = root rw, grupo r, otros -)
   notify: Reiniciar chirpstack
   no_log: true
 

@@ -50,8 +50,23 @@
   become: true
   become_user: postgres
 
-# ─── 5. Extensiones ───────────────────────────────────────────────────────────
-# Las extensiones se activan POR BD, no globalmente. Por eso se pasa `db`.
+# ─── 5. Privilegios en el schema public ───────────────────────────────────────
+# Desde PostgreSQL 15, ser OWNER de la BD ya NO concede CREATE en el schema
+# `public` automáticamente. ChirpStack aplica migraciones al arrancar (crea
+# sus tablas) y necesita ese privilegio o el servicio muere con "db error".
+- name: "[postgresql] Conceder ALL en schema public al usuario {{ postgresql_db_user }}"
+  community.postgresql.postgresql_privs:
+    login_db: "{{ postgresql_db_name }}"
+    roles: "{{ postgresql_db_user }}"
+    type: schema
+    objs: public
+    privs: ALL
+    state: present
+  become: true
+  become_user: postgres
+
+# ─── 6. Extensiones ───────────────────────────────────────────────────────────
+# Las extensiones se activan POR BD, no globalmente. Por eso se pasa `login_db`.
 - name: "[postgresql] Activar extensiones en la BD ({{ postgresql_extensions | join(', ') }})"
   community.postgresql.postgresql_ext:
     name: "{{ item }}"
