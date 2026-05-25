@@ -32,3 +32,6 @@
 
     - role: chirpstack
       tags: [chirpstack, app]
+
+    - role: nginx
+      tags: [nginx, proxy]

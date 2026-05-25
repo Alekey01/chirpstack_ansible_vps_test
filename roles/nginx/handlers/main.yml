@@ -1,0 +1,9 @@
+---
+# Handlers del rol `nginx`.
+# Usamos `reloaded` en vez de `restarted`: nginx soporta recarga en caliente
+# (recoge la nueva config sin cerrar las conexiones existentes).
+
+- name: Recargar nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

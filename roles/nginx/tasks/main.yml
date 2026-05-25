@@ -1,0 +1,64 @@
+---
+# Rol `nginx`: reverse proxy delante de ChirpStack.
+#
+# Tras este rol tendremos:
+#   - nginx instalado
+#   - Sitio /etc/nginx/sites-available/chirpstack.conf desplegado
+#   - Enlazado en sites-enabled/ y el default desactivado
+#   - Servicio activo y verificado en el puerto público
+
+# ─── 1. Paquete ───────────────────────────────────────────────────────────────
+- name: "[nginx] Instalar nginx"
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 2. Configuración del site (template) ─────────────────────────────────────
+- name: "[nginx] Desplegar /etc/nginx/sites-available/chirpstack.conf"
+  ansible.builtin.template:
+    src: chirpstack.conf.j2
+    dest: /etc/nginx/sites-available/chirpstack.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar nginx
+
+# ─── 3. Habilitar el site (link a sites-enabled) ──────────────────────────────
+# Convención Debian/Ubuntu: el fichero "real" vive en sites-available y se
+# habilita con un symlink desde sites-enabled. Nginx solo lee este último.
+- name: "[nginx] Enlazar chirpstack.conf en sites-enabled/"
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/chirpstack.conf
+    dest: /etc/nginx/sites-enabled/chirpstack.conf
+    state: link
+  notify: Recargar nginx
+
+# ─── 4. Deshabilitar el site default ──────────────────────────────────────────
+# Si dejamos el default activo, podría ganarle al nuestro (es el otro
+# default_server) y mostrar la página "Welcome to nginx" en lugar de ChirpStack.
+- name: "[nginx] Borrar el site default si existe"
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recargar nginx
+
+# ─── 5. Servicio ──────────────────────────────────────────────────────────────
+- name: "[nginx] Asegurar servicio activo y habilitado"
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+# Forzar reload pendiente ANTES del check para que verifiquemos la versión nueva.
+- name: "[nginx] Ejecutar handlers pendientes antes de verificar"
+  ansible.builtin.meta: flush_handlers
+
+# ─── 6. Verificación ──────────────────────────────────────────────────────────
+- name: "[nginx] Verificar que nginx escucha en el puerto {{ nginx_listen_port }}"
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ nginx_listen_port }}"
+    timeout: 15
+    state: started

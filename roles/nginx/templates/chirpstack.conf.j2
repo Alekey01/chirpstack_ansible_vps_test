@@ -1,0 +1,31 @@
+{#
+  /etc/nginx/sites-available/chirpstack.conf
+  Reverse proxy de nginx delante de ChirpStack.
+  Generado por Ansible — no editar a mano.
+#}
+server {
+    listen {{ nginx_listen_port }} default_server;
+    listen [::]:{{ nginx_listen_port }} default_server;
+    server_name {{ nginx_server_name }};
+
+    # ChirpStack v4 puede manejar uploads grandes (region.toml, integraciones...).
+    client_max_body_size 50m;
+
+    # gRPC-Web (lo que usa la UI de ChirpStack) viaja sobre HTTP/1.1 con
+    # upgrade. Estas directivas son las que permiten que funcione bien.
+    location / {
+        proxy_pass {{ nginx_proxy_target }};
+
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+
+        # Timeouts amplios — el gRPC-Web puede tener streams largos.
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}

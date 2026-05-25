@@ -18,8 +18,13 @@ proyecto_nombre: chirpstack-iot
 entorno: pruebas             # pruebas | cliente
 
 # ─── Red ──────────────────────────────────────────────────────────────────────
-# Puerto en el que la UI web de ChirpStack escucha. Por defecto 8080.
+# Puerto en el que la UI web de ChirpStack escucha (interno).
 chirpstack_puerto_web: 8080
+
+# Dirección donde ChirpStack hace bind. Con nginx delante usamos 127.0.0.1
+# (solo accesible localmente) y dejamos que nginx en :80 sea la única puerta
+# de entrada desde internet.
+chirpstack_bind_address: "127.0.0.1"
 
 # ─── Versiones (rellenar cuando confirmemos compatibilidad con la VPS) ────────
 # chirpstack_version: "4.x"

@@ -27,8 +27,10 @@
   enabled_regions = ["{{ chirpstack_region }}"]
 
 # ── API (UI web + gRPC) ──────────────────────────────────────────────────────
+# Bind a 127.0.0.1 porque nginx (puerto 80) hace de reverse proxy delante.
+# Si quitas nginx, cambia chirpstack_bind_address a 0.0.0.0 en group_vars.
 [api]
-  bind = "0.0.0.0:{{ chirpstack_puerto_web }}"
+  bind = "{{ chirpstack_bind_address }}:{{ chirpstack_puerto_web }}"
   secret = "{{ chirpstack_api_secret }}"
 
 # ── Conexión al broker MQTT (donde escucha el gateway-bridge) ────────────────
