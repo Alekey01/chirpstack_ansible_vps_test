@@ -1,0 +1,38 @@
+---
+# Instalación de Docker CE + plugin compose desde el repo oficial.
+# Sigue las instrucciones de https://docs.docker.com/engine/install/ubuntu/
+# adaptadas a Ansible y a la VPS Ubuntu 26.04.
+
+- name: "[docker] Asegurar que existe /etc/apt/keyrings"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: "[docker] Descargar y desarmar la clave GPG de Docker"
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ docker_apt_key_url }} | gpg --dearmor -o {{ docker_apt_keyring }}"
+    creates: "{{ docker_apt_keyring }}"
+
+- name: "[docker] Asegurar permisos de la clave GPG"
+  ansible.builtin.file:
+    path: "{{ docker_apt_keyring }}"
+    mode: "0644"
+
+- name: "[docker] Añadir repo apt de Docker"
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }} signed-by={{ docker_apt_keyring }}] {{ docker_apt_repo_url }} {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: "[docker] Instalar Docker CE + plugin compose"
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: "[docker] Asegurar que el servicio docker está activo y habilitado"
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true

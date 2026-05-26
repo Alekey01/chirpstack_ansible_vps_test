@@ -1,0 +1,20 @@
+---
+# Variables del rol dashboard. Sobreescribibles desde group_vars.
+# Los SECRETOS (passwords, JWT) NO viven aquí — están en vault.yml cifrado.
+
+dashboard_repo_url: "https://github.com/Alekey01/Dashboard_Cuby_LoRaWAN.git"
+dashboard_repo_branch: "main"
+dashboard_install_dir: "/opt/dashboard"
+
+# Puerto interno donde el contenedor expone el backend (también lo usa nginx).
+dashboard_port: 5015
+
+# Datos de la BD que vive en el contenedor postgres del dashboard.
+dashboard_pg_db: "cuby_lorawan_db"
+dashboard_pg_user: "alekey"
+
+# El backend conecta al ChirpStack del HOST (no al ChirpStack containerizado, no hay).
+# Importante: usamos 8080, no 9090 como traía el .env.docker original — ese era un
+# leftover de una config previa.
+dashboard_chirpstack_api: "http://host.docker.internal:8080"
+dashboard_mqtt_broker: "mqtt://host.docker.internal:1883"

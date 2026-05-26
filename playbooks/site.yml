@@ -33,5 +33,8 @@
     - role: chirpstack
       tags: [chirpstack, app]
 
+    - role: dashboard
+      tags: [dashboard]
+
     - role: nginx
       tags: [nginx, proxy]

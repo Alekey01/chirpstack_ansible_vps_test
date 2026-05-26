@@ -57,3 +57,11 @@ chirpstack_region: "us915_1"
 # 🔒 PROVISIONAL: cuando todo funcione, generaremos uno random con
 # `openssl rand -base64 32` y lo moveremos a ansible-vault.
 chirpstack_api_secret: "cambia_este_secreto_chirpstack_temporal"
+
+# ─── Secretos del dashboard ───────────────────────────────────────────────────
+# Los valores reales viven en `vault.yml` (cifrado). Aquí simplemente los
+# "publicamos" con nombres sin prefijo `vault_` para que los roles los
+# referencien sin saber que vienen del vault.
+dashboard_pg_password:     "{{ vault_dashboard_pg_password }}"
+dashboard_gateway_id:      "{{ vault_dashboard_gateway_id }}"
+dashboard_chirpstack_jwt:  "{{ vault_dashboard_chirpstack_jwt }}"

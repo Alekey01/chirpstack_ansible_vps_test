@@ -1,0 +1,20 @@
+---
+# Archivo CIFRADO con ansible-vault. NO editarlo directamente — usar:
+#   ansible-vault edit inventory/group_vars/chirpstack_servers/vault.yml
+#
+# Convención: las claves empiezan por `vault_` para distinguirlas a simple vista.
+# En vars.yml se "exportan" sin el prefijo para usarlas desde plays/roles.
+
+# Contraseña de la BD PostgreSQL del contenedor del dashboard.
+# Si lo cambias después, el contenedor postgres tiene los datos en un volumen
+# y NO regenerará la contraseña al iniciar — habría que recrear el volumen.
+vault_dashboard_pg_password: "CAMBIA_ESTA_CONTRASEÑA_FUERTE"
+
+# Gateway ID del gateway físico (el que ve ChirpStack).
+# Mismo valor que tenías en tu .env.docker local.
+vault_dashboard_gateway_id: "24e124fffefaf7a9"
+
+# JWT que el dashboard usa para hablar con el API de ChirpStack.
+# Se genera en la UI de ChirpStack → Tenants → API Keys → Add.
+# El que tenías en .env.docker servirá si el ChirpStack no se ha reinstalado.
+vault_dashboard_chirpstack_jwt: "PEGAR_AQUÍ_EL_JWT_DE_CHIRPSTACK"

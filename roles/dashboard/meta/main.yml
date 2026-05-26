@@ -1,0 +1,5 @@
+---
+# El dashboard necesita Docker corriendo. Ansible aplicará docker antes
+# automáticamente gracias a este dependencies.
+dependencies:
+  - role: docker

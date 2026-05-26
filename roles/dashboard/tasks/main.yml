@@ -1,0 +1,69 @@
+---
+# Despliegue del Dashboard Cuby LoRaWAN como contenedores Docker en el VPS.
+# Pre-requisito: rol docker (ya viene como dependencia en meta/main.yml).
+#
+# Flujo:
+#   1. Instalar git.
+#   2. Clonar/actualizar el repo en /opt/dashboard.
+#   3. Renderizar .env.docker con secretos del vault.
+#   4. Sobreescribir CHIRPSTACK_API y MQTT_BROKER en docker-compose.yml
+#      (el repo trae valores buenos pero forzamos los nuestros por claridad).
+#   5. docker compose up -d --build (handler).
+
+- name: "[dashboard] Instalar git"
+  ansible.builtin.apt:
+    name: git
+    state: present
+
+- name: "[dashboard] Clonar o actualizar el repo del dashboard"
+  ansible.builtin.git:
+    repo: "{{ dashboard_repo_url }}"
+    dest: "{{ dashboard_install_dir }}"
+    version: "{{ dashboard_repo_branch }}"
+    update: true
+  notify: dashboard compose up
+
+- name: "[dashboard] Renderizar .env.docker con secretos del vault"
+  ansible.builtin.template:
+    src: .env.docker.j2
+    dest: "{{ dashboard_install_dir }}/.env.docker"
+    mode: "0600"
+  notify: dashboard compose up
+
+- name: "[dashboard] Forzar CHIRPSTACK_API/MQTT del compose a apuntar al host correcto"
+  ansible.builtin.lineinfile:
+    path: "{{ dashboard_install_dir }}/docker-compose.yml"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backrefs: true
+  loop:
+    - regexp: '^(\s*)CHIRPSTACK_API:.*$'
+      line: '\1CHIRPSTACK_API: {{ dashboard_chirpstack_api }}'
+    - regexp: '^(\s*)MQTT_BROKER:.*$'
+      line: '\1MQTT_BROKER:    {{ dashboard_mqtt_broker }}'
+  notify: dashboard compose up
+
+- name: "[dashboard] Asegurar que los contenedores están arriba"
+  ansible.builtin.command:
+    cmd: docker compose ps --status running --quiet
+    chdir: "{{ dashboard_install_dir }}"
+  register: dashboard_running
+  changed_when: false
+
+- name: "[dashboard] Arrancar contenedores si no estaban corriendo"
+  ansible.builtin.command:
+    cmd: docker compose up -d --build
+    chdir: "{{ dashboard_install_dir }}"
+  when: dashboard_running.stdout_lines | length < 2   # esperamos 2: postgres + backend
+
+- name: "[dashboard] Ejecutar handlers pendientes antes de verificar"
+  ansible.builtin.meta: flush_handlers
+
+- name: "[dashboard] Verificar que el backend responde en localhost"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ dashboard_port }}/health"
+    status_code: 200
+  register: dashboard_health
+  retries: 15
+  delay: 2
+  until: dashboard_health.status == 200

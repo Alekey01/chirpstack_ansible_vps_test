@@ -1,0 +1,9 @@
+---
+# Cuando cambie el .env.docker o el código del repo, hay que reconstruir/recrear
+# los contenedores para que las variables/archivos nuevos surtan efecto.
+# Usamos el CLI docker compose directamente para no depender de la colección
+# community.docker (un módulo de Ansible adicional que habría que instalar).
+- name: dashboard compose up
+  ansible.builtin.command:
+    cmd: docker compose up -d --build
+    chdir: "{{ dashboard_install_dir }}"
