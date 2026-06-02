@@ -1,0 +1,15 @@
+---
+# Variables del rol chirpstack_api_key.
+#
+# Bootstrap de una API key global de admin para que Ansible (y otros clientes
+# automatizados) puedan llamar a la API REST de ChirpStack sin la UI.
+
+# Dónde se lee el token. El usuario lo crea UNA vez vía UI y lo pega en este
+# fichero (mode 0600 + owner root porque equivale a credenciales de admin).
+# Ver el comentario al principio de tasks/main.yml para el procedimiento.
+chirpstack_api_key_path: "/etc/chirpstack/.ansible_api_key"
+
+# Base URL de la API REST. Apunta al proxy `chirpstack-rest-api` (puerto 8090),
+# NO al servidor gRPC de ChirpStack (8080): el binario chirpstack no expone REST.
+# El rol `chirpstack_rest_api` debe haberse ejecutado antes.
+chirpstack_api_base: "http://{{ chirpstack_rest_api_bind | default('127.0.0.1:8090') }}"

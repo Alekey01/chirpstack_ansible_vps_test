@@ -1,0 +1,27 @@
+---
+# Variables del rol chirpstack_gateway.
+
+# Nombre del tenant donde se crearán los gateways. ChirpStack v4 crea un
+# tenant llamado "ChirpStack" en el primer arranque; si el cliente cambia
+# el nombre, sobreescribir aquí.
+chirpstack_default_tenant: "ChirpStack"
+
+# Region profile que se asocia a cada gateway. ChirpStack v4 trae uno por
+# región habilitada — el nombre coincide con la región (us915_1, eu868, ...).
+# Sobreescribible por-gateway en el inventario si tienes flotas mixtas.
+chirpstack_gateway_default_region: "{{ chirpstack_region }}"
+
+# Lista de gateways a crear. Vacía por defecto — el inventario real vive en
+# inventory/group_vars/chirpstack_servers/gateways.yml para no enredar este
+# fichero cuando lleguen 100+.
+#
+# Esquema de cada entrada:
+#   gateway_id:   string hex de 16 caracteres (EUI64). OBLIGATORIO.
+#   name:         nombre visible en la UI. OBLIGATORIO.
+#   description:  texto libre. opcional.
+#   tenant:       sobreescribe chirpstack_default_tenant. opcional.
+#   region:       sobreescribe chirpstack_gateway_default_region. opcional.
+#   stats_interval: segundos entre stats del bridge. opcional, def. 30.
+#   location:     { latitude, longitude, altitude } — opcional.
+#   tags:         dict de tags libres (ej. {sitio: "oficina"}). opcional.
+chirpstack_gateways: []

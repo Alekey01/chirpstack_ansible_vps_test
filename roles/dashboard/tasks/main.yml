@@ -1,0 +1,399 @@
+---
+# Despliegue del Dashboard Cuby LoRaWAN BAREMETAL (sin Docker).
+#
+# Flujo:
+#   1. Paquetes base (git, unzip).
+#   2. Usuario de sistema `dashboard` para correr el proceso.
+#   3. Deploy key SSH → clonar repo privado de GitHub.
+#   4. Bun runtime → /opt/bun + symlink en /usr/local/bin/bun.
+#   5. Postgres del sistema: crear DB cuby_lorawan_db + usuario alekey + GRANTs.
+#   6. bun install + bun run build dentro del repo.
+#   7. .env baremetal + unit systemd → arrancar y verificar.
+#
+# Migraciones de esquema: el repo trae db/init.sql con CREATE TABLE/INDEX
+# IF NOT EXISTS. La versión Docker lo aplicaba via /docker-entrypoint-initdb.d/
+# del contenedor de Postgres; bare-metal lo aplicamos explícitamente con
+# postgresql_script tras el clone (idempotente).
+
+# ─── 0. Paquetes del sistema ──────────────────────────────────────────────────
+- name: "[dashboard] Instalar git + unzip (necesarios para clone + bun install)"
+  ansible.builtin.apt:
+    name:
+      - git
+      - unzip          # Bun release viene como .zip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── 1. Usuario de sistema para el servicio ───────────────────────────────────
+# Usuario sin login, con home en {{ dashboard_install_dir }} para que `bun install`
+# pueda escribir la caché en ~/.bun (de lo contrario explota con EACCES).
+- name: "[dashboard] Crear grupo del servicio"
+  ansible.builtin.group:
+    name: "{{ dashboard_service_group }}"
+    state: present
+    system: true
+
+- name: "[dashboard] Crear usuario de sistema {{ dashboard_service_user }}"
+  ansible.builtin.user:
+    name: "{{ dashboard_service_user }}"
+    group: "{{ dashboard_service_group }}"
+    system: true
+    create_home: false
+    home: "{{ dashboard_install_dir }}"
+    shell: /usr/sbin/nologin
+    state: present
+
+# ─── 2. Deploy key SSH (idéntico al flujo anterior) ───────────────────────────
+- name: "[dashboard] Asegurar /root/.ssh con permisos correctos"
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    mode: "0700"
+
+- name: "[dashboard] Generar deploy key SSH si no existe"
+  ansible.builtin.command:
+    cmd: "ssh-keygen -t ed25519 -f {{ dashboard_deploy_key_path }} -N '' -C 'dashboard-deploy@{{ inventory_hostname }}'"
+    creates: "{{ dashboard_deploy_key_path }}"
+
+- name: "[dashboard] Leer la deploy key pública"
+  ansible.builtin.slurp:
+    src: "{{ dashboard_deploy_key_path }}.pub"
+  register: dashboard_deploy_pubkey
+
+- name: "[dashboard] Configurar ~/.ssh/config para github.com con la deploy key"
+  ansible.builtin.blockinfile:
+    path: /root/.ssh/config
+    create: true
+    mode: "0600"
+    marker: "# {mark} ANSIBLE MANAGED — dashboard deploy key"
+    block: |
+      Host github.com
+        HostName github.com
+        User git
+        IdentityFile {{ dashboard_deploy_key_path }}
+        IdentitiesOnly yes
+        StrictHostKeyChecking accept-new
+
+- name: "[dashboard] Comprobar si GitHub acepta nuestra deploy key"
+  ansible.builtin.command:
+    cmd: ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T git@github.com
+  register: dashboard_github_auth
+  changed_when: false
+  failed_when: false
+
+- name: "[dashboard] Mostrar deploy key pública para añadir a GitHub (primer run)"
+  ansible.builtin.debug:
+    msg: |
+      ════════════════════════════════════════════════════════════════════
+      DEPLOY KEY del VPS para el repo Dashboard_Cuby_LoRaWAN
+
+      Pega esta línea en:
+        github.com/Alekey01/Dashboard_Cuby_LoRaWAN → Settings → Deploy keys
+        → Add deploy key
+      Título sugerido: chirpstack-vps   |   Allow write access: NO
+      ════════════════════════════════════════════════════════════════════
+      {{ dashboard_deploy_pubkey['content'] | b64decode | trim }}
+      ════════════════════════════════════════════════════════════════════
+  when: "'successfully authenticated' not in dashboard_github_auth.stderr"
+
+- name: "[dashboard] Pausar hasta que la deploy key esté en GitHub"
+  ansible.builtin.pause:
+    prompt: "Pega la clave en GitHub y pulsa Enter para continuar"
+  when: "'successfully authenticated' not in dashboard_github_auth.stderr"
+
+# ─── 3. Bun runtime ───────────────────────────────────────────────────────────
+# Bun no tiene repo apt oficial. Bajamos el binario release de GitHub.
+# Idempotente: si el binario ya está en {{ dashboard_bun_bin }}, no se descarga.
+#
+# En `--check`: lo saltamos entero. En check, `file state=directory` no crea
+# realmente el dir, así que `unarchive` revienta con "must be an existing dir".
+# Tampoco tiene sentido simular un download+unzip de un binario.
+- name: "[dashboard] Instalación de Bun (descarga + descompresión + symlink)"
+  when: not ansible_check_mode
+  block:
+    - name: "[dashboard] Crear directorio de instalación de Bun"
+      ansible.builtin.file:
+        path: "{{ dashboard_bun_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: "[dashboard] Comprobar si Bun ya está instalado"
+      ansible.builtin.stat:
+        path: "{{ dashboard_bun_install_dir }}/bin/bun"
+      register: dashboard_bun_stat
+
+    # La URL `latest/download` redirige al último release. Para versión fija,
+    # sobreescribe dashboard_bun_version (ej. "bun-v1.1.45") y ajusta la URL.
+    - name: "[dashboard] Descargar release de Bun (linux x64)"
+      ansible.builtin.get_url:
+        url: "https://github.com/oven-sh/bun/releases/{{ 'latest/download' if dashboard_bun_version == 'latest' else 'download/' + dashboard_bun_version }}/bun-linux-x64.zip"
+        dest: /tmp/bun-linux-x64.zip
+        mode: "0644"
+        force: true
+      when: not dashboard_bun_stat.stat.exists
+
+    - name: "[dashboard] Descomprimir Bun en {{ dashboard_bun_install_dir }}"
+      ansible.builtin.unarchive:
+        src: /tmp/bun-linux-x64.zip
+        dest: "{{ dashboard_bun_install_dir }}"
+        remote_src: true
+        extra_opts: ["-j"]    # -j = "junk paths": no recrear el directorio bun-linux-x64/
+      when: not dashboard_bun_stat.stat.exists
+
+    - name: "[dashboard] Crear {{ dashboard_bun_install_dir }}/bin/"
+      ansible.builtin.file:
+        path: "{{ dashboard_bun_install_dir }}/bin"
+        state: directory
+        mode: "0755"
+      when: not dashboard_bun_stat.stat.exists
+
+    - name: "[dashboard] Reubicar binario en bin/"
+      ansible.builtin.command:
+        cmd: "mv {{ dashboard_bun_install_dir }}/bun {{ dashboard_bun_install_dir }}/bin/bun"
+        creates: "{{ dashboard_bun_install_dir }}/bin/bun"
+      when: not dashboard_bun_stat.stat.exists
+
+    - name: "[dashboard] Asegurar permisos ejecutables sobre bun"
+      ansible.builtin.file:
+        path: "{{ dashboard_bun_install_dir }}/bin/bun"
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: "[dashboard] Symlink /usr/local/bin/bun → {{ dashboard_bun_install_dir }}/bin/bun"
+      ansible.builtin.file:
+        src: "{{ dashboard_bun_install_dir }}/bin/bun"
+        dest: "{{ dashboard_bun_bin }}"
+        state: link
+        force: true
+
+    - name: "[dashboard] Verificar Bun"
+      ansible.builtin.command:
+        cmd: "{{ dashboard_bun_bin }} --version"
+      register: dashboard_bun_version_check
+      changed_when: false
+
+    - name: "[dashboard] Mostrar versión de Bun instalada"
+      ansible.builtin.debug:
+        msg: "Bun {{ dashboard_bun_version_check.stdout }}"
+
+# ─── 4. DB del dashboard en el Postgres del sistema ──────────────────────────
+# Mismo Postgres que ChirpStack, BD separada. Usa los módulos community.postgresql
+# que ya se utilizan en el rol postgresql, así que no añadimos dependencias.
+- name: "[dashboard] Crear usuario Postgres {{ dashboard_pg_user }}"
+  community.postgresql.postgresql_user:
+    name: "{{ dashboard_pg_user }}"
+    password: "{{ vault_dashboard_pg_password }}"
+    state: present
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: "[dashboard] Crear BD {{ dashboard_pg_db }}"
+  community.postgresql.postgresql_db:
+    name: "{{ dashboard_pg_db }}"
+    owner: "{{ dashboard_pg_user }}"
+    encoding: UTF-8
+    state: present
+  become: true
+  become_user: postgres
+
+# Mismo motivo que en el rol postgresql: desde PG15 ser OWNER de la BD ya no
+# concede CREATE en `public`, y el ORM del backend lo necesita para crear sus
+# tablas en el primer arranque.
+#
+# En `--check`, postgresql_db reporta el cambio pero no crea la BD, así que
+# esta tarea fallaría conectándose a una BD inexistente. Saltarla en check.
+- name: "[dashboard] GRANT ALL en schema public de {{ dashboard_pg_db }}"
+  community.postgresql.postgresql_privs:
+    login_db: "{{ dashboard_pg_db }}"
+    roles: "{{ dashboard_pg_user }}"
+    type: schema
+    objs: public
+    privs: ALL
+    state: present
+  become: true
+  become_user: postgres
+  when: not ansible_check_mode
+
+# ─── 5-7. Resto del rol (repo, build, .env, systemd, verificación) ──────────
+# En `--check` el usuario `dashboard` y el binario `bun` no existen (sus tareas
+# arriba se simularon), así que TODO lo que viene a continuación fallaría:
+# chown contra un usuario que no existe, `become_user: dashboard` que no se
+# puede asumir, templates con owner inexistente, systemd unit cuyo fichero no
+# se escribió, etc.
+#
+# En vez de poner `when: not ansible_check_mode` en cada tarea, envolvemos todo
+# el bloque. En check, sale como "skipped" y el playbook sigue.
+- name: "[dashboard] Despliegue (saltado en --check)"
+  when: not ansible_check_mode
+  block:
+
+    # ── 5. Repo + dependencias + build ─────────────────────────────────────
+    - name: "[dashboard] Asegurar que {{ dashboard_install_dir }} pertenece al usuario del servicio"
+      ansible.builtin.file:
+        path: "{{ dashboard_install_dir }}"
+        state: directory
+        owner: "{{ dashboard_service_user }}"
+        group: "{{ dashboard_service_group }}"
+        mode: "0755"
+
+    # Git 2.35+ rechaza repos cuyo dueño difiere del usuario que ejecuta el
+    # comando. Aquí git corre como root, pero {{ dashboard_install_dir }} es
+    # propiedad del usuario `dashboard` (por el chown post-clone). Whitelisteamos
+    # el path en el gitconfig global de root.
+    # Idempotente: si el valor ya está en --get-all, no hace nada.
+    - name: "[dashboard] Whitelistear {{ dashboard_install_dir }} en safe.directory de root"
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          if git config --global --get-all safe.directory 2>/dev/null \
+              | grep -qx '{{ dashboard_install_dir }}'; then
+            echo unchanged
+          else
+            git config --global --add safe.directory '{{ dashboard_install_dir }}'
+            echo added
+          fi
+      register: dashboard_git_safedir
+      changed_when: "'added' in dashboard_git_safedir.stdout"
+
+    - name: "[dashboard] Clonar/actualizar el repo del dashboard"
+      ansible.builtin.git:
+        repo: "{{ dashboard_repo_url }}"
+        dest: "{{ dashboard_install_dir }}"
+        version: "{{ dashboard_repo_branch }}"
+        update: true
+        force: true       # descarta cambios locales — overrides van en .env, no en el código
+        accept_hostkey: true
+        key_file: "{{ dashboard_deploy_key_path }}"
+      register: dashboard_git
+      # git corre como root pero los archivos los necesita el usuario `dashboard`.
+      # Hacemos chown a posteriori (siguiente tarea) en vez de cambiar de usuario aquí
+      # — el git CLI con la deploy key vive en /root/.ssh.
+
+    - name: "[dashboard] chown {{ dashboard_install_dir }} al usuario del servicio"
+      ansible.builtin.file:
+        path: "{{ dashboard_install_dir }}"
+        owner: "{{ dashboard_service_user }}"
+        group: "{{ dashboard_service_group }}"
+        recurse: true
+
+    # Aplicar el esquema (uplinks, join_events, gateway_stats). En Docker lo
+    # hacía el entrypoint del contenedor de Postgres; aquí lo aplicamos a mano.
+    # El SQL usa IF NOT EXISTS en todo, así que puede correr en cada run.
+    - name: "[dashboard] Aplicar db/init.sql contra {{ dashboard_pg_db }}"
+      community.postgresql.postgresql_script:
+        login_db: "{{ dashboard_pg_db }}"
+        path: "{{ dashboard_install_dir }}/db/init.sql"
+      become: true
+      become_user: postgres
+
+    # postgresql_script corre como `postgres`, así que las tablas creadas por
+    # init.sql quedan owner=postgres y el backend (que conecta como alekey)
+    # recibe "permission denied for table uplinks". Reasignamos owner de TODO
+    # lo que esté en public a dashboard_pg_user. ALTER ... OWNER TO es idempotente
+    # (no cambia nada si el owner ya coincide).
+    - name: "[dashboard] Reasignar owner de tablas y secuencias de public a {{ dashboard_pg_user }}"
+      community.postgresql.postgresql_query:
+        login_db: "{{ dashboard_pg_db }}"
+        query: |
+          DO $$
+          DECLARE r record;
+          BEGIN
+            FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+              EXECUTE format('ALTER TABLE public.%I OWNER TO %I', r.tablename, '{{ dashboard_pg_user }}');
+            END LOOP;
+            FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+              EXECUTE format('ALTER SEQUENCE public.%I OWNER TO %I', r.sequencename, '{{ dashboard_pg_user }}');
+            END LOOP;
+          END $$;
+      become: true
+      become_user: postgres
+
+    # Comprobamos qué hay ya instalado/buildeado para no rehacer trabajo en cada
+    # run. `bun install --frozen-lockfile` es rápido si está todo (~100ms), pero
+    # con 100 gateways y runs frecuentes preferimos el stat-and-skip.
+    #
+    # Para el build del frontend statemamos `dist/index.html` (no solo `dist/`):
+    # un build interrumpido deja el directorio vacío y el backend explota con
+    # ENOENT al servir SPA.
+    - name: "[dashboard] Stat de node_modules backend / frontend / dist/index.html"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: dashboard_artifacts
+      loop:
+        - "{{ dashboard_backend_dir }}/node_modules"
+        - "{{ dashboard_frontend_dir }}/node_modules"
+        - "{{ dashboard_frontend_dir }}/dist/index.html"
+
+    - name: "[dashboard] bun install en backend (si falta node_modules o cambió el repo)"
+      ansible.builtin.command:
+        cmd: "{{ dashboard_bun_bin }} install --frozen-lockfile"
+        chdir: "{{ dashboard_backend_dir }}"
+      become: true
+      become_user: "{{ dashboard_service_user }}"
+      when: dashboard_git.changed or not dashboard_artifacts.results[0].stat.exists
+      changed_when: true
+      notify: dashboard service restart
+
+    - name: "[dashboard] bun install en frontend (si falta node_modules o cambió el repo)"
+      ansible.builtin.command:
+        cmd: "{{ dashboard_bun_bin }} install --frozen-lockfile"
+        chdir: "{{ dashboard_frontend_dir }}"
+      become: true
+      become_user: "{{ dashboard_service_user }}"
+      when: dashboard_git.changed or not dashboard_artifacts.results[1].stat.exists
+      changed_when: true
+
+    - name: "[dashboard] bun run build del frontend (si falta dist/ o cambió el repo)"
+      ansible.builtin.command:
+        cmd: "{{ dashboard_bun_bin }} run build"
+        chdir: "{{ dashboard_frontend_dir }}"
+      become: true
+      become_user: "{{ dashboard_service_user }}"
+      when: dashboard_git.changed or not dashboard_artifacts.results[2].stat.exists
+      changed_when: true
+
+    # ── 6. .env + unit systemd ─────────────────────────────────────────────
+    - name: "[dashboard] Renderizar .env con secretos del vault"
+      ansible.builtin.template:
+        src: .env.j2
+        dest: "{{ dashboard_install_dir }}/.env"
+        owner: "{{ dashboard_service_user }}"
+        group: "{{ dashboard_service_group }}"
+        mode: "0600"        # contiene contraseña y JWT
+      notify:
+        - dashboard service restart
+      no_log: true
+
+    - name: "[dashboard] Renderizar unit systemd"
+      ansible.builtin.template:
+        src: dashboard.service.j2
+        dest: "/etc/systemd/system/{{ dashboard_service_name }}.service"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - dashboard systemd reload
+        - dashboard service restart
+
+    # ── 7. Arranque + verificación ─────────────────────────────────────────
+    - name: "[dashboard] Habilitar y arrancar el servicio"
+      ansible.builtin.systemd:
+        name: "{{ dashboard_service_name }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: "[dashboard] Ejecutar handlers pendientes antes de verificar"
+      ansible.builtin.meta: flush_handlers
+
+    - name: "[dashboard] Verificar que el backend responde en localhost:{{ dashboard_port }}"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ dashboard_port }}/health"
+        status_code: 200
+      register: dashboard_health
+      retries: 15
+      delay: 2
+      until: dashboard_health.status == 200

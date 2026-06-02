@@ -1,0 +1,85 @@
+---
+# Rol `chirpstack_api_key`: localiza una API key global de admin en disco para
+# que el rol `chirpstack_gateway` (y futuros) puedan llamar a la REST API.
+#
+# ¿Por qué no se auto-bootstrapea?
+#   chirpstack-rest-api expone los servicios "públicos" (gateways, tenants,
+#   users, devices...) pero NO `InternalService` — donde viven /login y
+#   /api-keys. Es por diseño: la creación de API keys solo está disponible
+#   por la UI (que habla gRPC-Web directo a :8080, sin pasar por el proxy
+#   REST). Crear la API key vía SQL + firmar el JWT a mano funciona pero es
+#   frágil (depende de la versión exacta del schema y del formato de claims).
+#
+# Bootstrap MANUAL (UNA sola vez):
+#   1. Entra a la UI en http://<vps>/  (admin/admin por defecto).
+#   2. Menú lateral → "API Keys" (del tenant, o "Tenants" → entra al tenant
+#      "ChirpStack" → "API Keys" si tu versión lo pone ahí).
+#   3. "Add API key" → nombre p.ej. "ansible-bootstrap" → Admin: SÍ → Submit.
+#   4. ChirpStack te muestra el token UNA vez. Cópialo.
+#   5. Pégalo en el VPS:
+#        ssh root@<vps> 'umask 077 && cat > /etc/chirpstack/.ansible_api_key' \
+#          <<< 'eyJ...el-token-aquí...'
+#      o:
+#        ssh root@<vps>
+#        nano /etc/chirpstack/.ansible_api_key   (pega y guarda)
+#        chmod 600 /etc/chirpstack/.ansible_api_key
+#   6. Vuelve a correr ansible-playbook.
+
+# ─── 1. ¿Existe el fichero del token? ────────────────────────────────────────
+- name: "[api-key] Comprobar si existe el fichero del token"
+  ansible.builtin.stat:
+    path: "{{ chirpstack_api_key_path }}"
+  register: chirpstack_api_key_file
+
+- name: "[api-key] Avisar si NO existe el fichero del token"
+  ansible.builtin.fail:
+    msg: |
+      ─────────────────────────────────────────────────────────────────
+      Falta {{ chirpstack_api_key_path }}.
+
+      Crea una API key admin en la UI de ChirpStack UNA vez:
+        1. Entra a http://{{ ansible_host | default(inventory_hostname) }}/
+           con admin/admin (o tus credenciales).
+        2. Crea una "Global API key" (Admin = true) desde el menú API Keys.
+        3. Copia el token (solo se muestra una vez).
+        4. En el VPS:
+             nano {{ chirpstack_api_key_path }}
+             chmod 600 {{ chirpstack_api_key_path }}
+        5. Vuelve a correr este playbook.
+      ─────────────────────────────────────────────────────────────────
+  when: not chirpstack_api_key_file.stat.exists
+
+# ─── 2. Leer el token ────────────────────────────────────────────────────────
+- name: "[api-key] Leer el token"
+  ansible.builtin.slurp:
+    src: "{{ chirpstack_api_key_path }}"
+  register: chirpstack_api_key_slurp
+  no_log: true
+
+- name: "[api-key] Registrar token como fact"
+  ansible.builtin.set_fact:
+    chirpstack_api_token: "{{ chirpstack_api_key_slurp.content | b64decode | trim }}"
+  no_log: true
+
+# ─── 3. Asegurar permisos del fichero ────────────────────────────────────────
+# Por si alguien lo creó con permisos demasiado abiertos.
+- name: "[api-key] Asegurar permisos 0600 root:root sobre el fichero del token"
+  ansible.builtin.file:
+    path: "{{ chirpstack_api_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# ─── 4. Verificación: el token funciona ──────────────────────────────────────
+# Listamos tenants — endpoint público que sí existe en chirpstack-rest-api.
+# Si el token es inválido o caducó: 401. Si va bien: 200 con la lista.
+- name: "[api-key] Verificar que el token funciona (listar tenants)"
+  ansible.builtin.uri:
+    url: "{{ chirpstack_api_base }}/api/tenants?limit=1"
+    headers:
+      Grpc-Metadata-Authorization: "Bearer {{ chirpstack_api_token }}"
+    status_code: 200
+  when:
+    - not ansible_check_mode
+    - chirpstack_api_token | length > 0
+  no_log: true

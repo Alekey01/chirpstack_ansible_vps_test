@@ -1,17 +1,16 @@
 ---
 # Variables por defecto del rol `mosquitto`.
 #
-# Configuración inicial: el broker solo es accesible desde la propia VPS
-# (localhost). Eso es lo que el `chirpstack-gateway-bridge` y el servidor
-# `chirpstack` necesitan para hablar entre sí.
-#
-# Cuando lleguen gateways físicos, añadiremos un segundo listener en la IP
-# pública con autenticación (usuario/contraseña o TLS). NO antes.
+# Antes hacía bind a 0.0.0.0 para que los contenedores Docker del dashboard
+# pudieran llegar vía host.docker.internal. Ahora todos los clientes
+# (gateway-bridge, chirpstack server, dashboard backend) viven en el mismo
+# host como procesos baremetal, así que basta con loopback.
 
 mosquitto_listener_port: 1883
 mosquitto_bind_address: "127.0.0.1"
 
-# `allow_anonymous: true` es ACEPTABLE únicamente porque el listener está
-# atado a localhost. Si algún día cambias `bind_address` a 0.0.0.0, pon esto
-# a `false` y configura usuarios — si no, exposición pública sin auth.
+# `allow_anonymous: true` es aceptable porque el listener solo escucha en
+# loopback — no es accesible desde fuera del host. Si en el futuro cambias
+# bind a 0.0.0.0 (p.ej. para clientes externos), pon esto a `false` y
+# configura usuarios con `password_file`.
 mosquitto_allow_anonymous: true

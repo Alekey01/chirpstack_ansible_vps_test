@@ -1,0 +1,54 @@
+---
+# Inventario de gateways LoRaWAN a registrar en ChirpStack.
+# Este fichero lo lee el rol `chirpstack_gateway`.
+#
+# Esquema de cada entrada (ver roles/chirpstack_gateway/defaults/main.yml):
+#   gateway_id:     EUI64 hex de 16 caracteres EN MINÚSCULAS. OBLIGATORIO.
+#                   En el UG63 lo lees en Status → Gateway EUI.
+#   name:           nombre visible en la UI. OBLIGATORIO.
+#   description:    texto libre (sitio, cliente, etc.). opcional.
+#   tenant:         tenant donde crearlo. opcional (def. "ChirpStack").
+#   region:         override por-gateway. opcional.
+#   stats_interval: segundos. opcional (def. 30).
+#   location:       opcional, ejemplo:
+#                     location: { latitude: 19.4326, longitude: -99.1332, altitude: 2240 }
+#   tags:           dict libre, p.ej. { sitio: "oficina-cdmx", cliente: "acme" }.
+#
+# CÓMO AÑADIR UN GATEWAY NUEVO:
+#   1. Apunta el packet forwarder del gateway físico a IP_VPS:1700 (Semtech UDP).
+#   2. Añade una entrada aquí con el EUI que muestra el gateway.
+#   3. `ansible-playbook playbooks/site.yml --tags gateways`
+#   4. En unos segundos debería aparecer "Last seen" en la UI.
+#
+# CONVENCIÓN DE NOMBRES recomendada con 100+ gateways:
+#   ug63-<cliente>-<sitio>-<nnn>   (ej. ug63-acme-cdmx-007)
+# Así el orden alfabético en la UI ya agrupa por cliente y sitio.
+
+chirpstack_gateways:
+
+  - gateway_id: "24e124fffefaf7a9"
+    name: "ug63-cuby-slp-001"
+    description: "Milesight UG63"
+    location:
+      latitude: 19.4326
+      longitude: -99.1332
+      altitude: 2240
+    tags:
+      sitio: "oficina-slp"
+      cliente: "cuby"
+  #   name: "ug63-acme-cdmx-001"
+  #   description: "Milesight UG63 - Oficina CDMX planta 1"
+  #   location:
+  #     latitude: 19.4326
+  #     longitude: -99.1332
+  #     altitude: 2240
+  #   tags:
+  #     sitio: "oficina-cdmx"
+  #     cliente: "acme"
+  #
+  # - gateway_id: "24e124fffef00002"
+  #   name: "ug63-acme-cdmx-002"
+  #   description: "Milesight UG63 - Oficina CDMX planta 2"
+  #   tags:
+  #     sitio: "oficina-cdmx"
+  #     cliente: "acme"

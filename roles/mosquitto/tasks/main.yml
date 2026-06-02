@@ -36,6 +36,12 @@
     state: started
     enabled: true
 
+# Forzamos que cualquier handler pendiente (típicamente "Reiniciar mosquitto"
+# si cambió la plantilla) corra AHORA. Sin esto, `ss` ve el listener viejo
+# (p. ej. 0.0.0.0 antes del cambio a 127.0.0.1) y la siguiente tarea falsea.
+- name: "[mosquitto] Ejecutar handlers pendientes antes de verificar"
+  ansible.builtin.meta: flush_handlers
+
 # ─── 4. Comprobación: NO expuesto fuera de localhost ──────────────────────────
 # Misma lógica que el rol `redis`: parseamos solo la columna 4 de `ss`.
 - name: "[mosquitto] Obtener direcciones donde escucha Mosquitto"
@@ -47,6 +53,24 @@
 - name: "[mosquitto] Mostrar direcciones de escucha (informativo)"
   ansible.builtin.debug:
     msg: "Mosquitto escucha en: {{ mosquitto_listen.stdout_lines }}"
+
+# Drift de config vs runtime: si un run anterior cambió el fichero pero el
+# handler de reinicio no llegó a ejecutarse (p.ej. el play falló después), el
+# template no marca `changed` en runs sucesivos y nadie reinicia. Detectamos
+# que ningún listener empieza por la dirección configurada y forzamos restart.
+- name: "[mosquitto] Reiniciar si el runtime no coincide con la config en disco"
+  ansible.builtin.service:
+    name: mosquitto
+    state: restarted
+  when:
+    - mosquitto_listen.stdout_lines | length > 0
+    - mosquitto_listen.stdout_lines | select('match', '^' ~ (mosquitto_bind_address | regex_escape) ~ ':') | list | length == 0
+
+- name: "[mosquitto] Re-leer direcciones tras posible restart"
+  ansible.builtin.shell:
+    cmd: "ss -tlnH | awk '{print $4}' | grep ':{{ mosquitto_listener_port }}$' || true"
+  register: mosquitto_listen
+  changed_when: false
 
 - name: "[mosquitto] Fallar si Mosquitto está expuesto fuera de localhost"
   ansible.builtin.fail:

@@ -33,5 +33,24 @@
     - role: chirpstack
       tags: [chirpstack, app]
 
+    # Proxy REST → gRPC. Necesario para que los roles siguientes hablen JSON
+    # con la API de ChirpStack (el binario chirpstack solo expone gRPC).
+    - role: chirpstack_rest_api
+      tags: [chirpstack_rest_api, rest_api, gateways]
+
+    # API key admin (idempotente: lee /etc/chirpstack/.ansible_api_key si existe).
+    - role: chirpstack_api_key
+      tags: [chirpstack_api_key, api_key, gateways]
+
+    # Alta de gateways en ChirpStack desde inventory/group_vars/.../gateways.yml.
+    - role: chirpstack_gateway
+      tags: [chirpstack_gateway, gateways]
+
+    - role: dashboard
+      tags: [dashboard]
+
     - role: nginx
       tags: [nginx, proxy]
+
+    - role: firewall
+      tags: [firewall]

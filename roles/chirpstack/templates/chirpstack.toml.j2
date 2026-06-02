@@ -45,3 +45,22 @@
   password = ""
   qos = 0
   clean_session = true
+
+# ── Integración MQTT global ──────────────────────────────────────────────────
+# Re-publica los eventos de aplicación (uplinks, joins, ack, status, location,
+# txack…) al broker MQTT local en los topics estándar de ChirpStack v4.
+# Sin esta sección, ChirpStack procesa los uplinks internamente pero NO los
+# emite a MQTT — el dashboard se quedaría sin datos en `application/+/...`.
+[integration]
+  enabled = ["mqtt"]
+
+[integration.mqtt]
+  {# Las {{...}} de abajo son sintaxis de plantilla de ChirpStack, no de Jinja. #}
+  event_topic_template   = {% raw %}"application/{{application_id}}/device/{{dev_eui}}/event/{{event}}"{% endraw %}
+
+  command_topic_template = {% raw %}"application/{{application_id}}/device/{{dev_eui}}/command/{{command}}"{% endraw %}
+
+  server   = "tcp://localhost:1883"
+  username = ""
+  password = ""
+  qos      = 0

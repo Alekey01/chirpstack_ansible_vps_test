@@ -1,0 +1,17 @@
+---
+# Rol firewall: configura UFW (Uncomplicated Firewall) para que solo los puertos
+# realmente necesarios sean accesibles desde internet.
+#
+# Filosofía: deny por defecto, allow explícito para lo que necesitamos.
+#
+# Nota histórica: antes había una sección `firewall_allow_docker` que abría
+# 1883/8080 a la subred del bridge Docker (172.16.0.0/12) para que los
+# contenedores del dashboard pudieran llegar a Mosquitto y a la API de
+# ChirpStack. Ya no aplica: el dashboard corre baremetal y habla por loopback.
+
+# Puertos abiertos al MUNDO (toda dirección IP).
+# Si añades HTTPS más adelante, mete 443/tcp aquí.
+firewall_allow_world:
+  - { port: "22",   proto: "tcp", comment: "SSH" }
+  - { port: "80",   proto: "tcp", comment: "nginx (ChirpStack + Dashboard)" }
+  - { port: "1700", proto: "udp", comment: "LoRa packet forwarder (gateways)" }

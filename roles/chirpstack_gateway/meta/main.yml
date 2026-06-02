@@ -1,0 +1,6 @@
+---
+# Necesitamos el token de admin que deja chirpstack_api_key.
+# La dependencia hace que Ansible lo ejecute antes automáticamente, incluso
+# si lanzas solo `--tags gateways`.
+dependencies:
+  - role: chirpstack_api_key

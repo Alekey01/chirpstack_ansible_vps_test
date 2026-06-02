@@ -1,0 +1,31 @@
+---
+# Configura UFW con regla "deny por defecto" + allows explícitos.
+# CRÍTICO: el SSH debe estar permitido ANTES de activar UFW, si no nos cortamos
+# a nosotros mismos. El orden de las tareas garantiza eso.
+
+- name: "[firewall] Instalar ufw"
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: "[firewall] Política por defecto: denegar todo lo entrante"
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: "[firewall] Política por defecto: permitir todo lo saliente"
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: "[firewall] Permitir puertos públicos"
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_allow_world }}"
+
+- name: "[firewall] Activar UFW"
+  community.general.ufw:
+    state: enabled

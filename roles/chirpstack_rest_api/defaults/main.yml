@@ -1,0 +1,17 @@
+---
+# Variables del rol chirpstack_rest_api.
+#
+# `chirpstack-rest-api` es un proxy oficial que traduce REST (JSON) a gRPC
+# contra el servidor ChirpStack. Se necesita porque el binario de ChirpStack
+# solo expone gRPC/gRPC-Web (sin REST), y Ansible (módulo `uri`) habla REST.
+
+# Puerto donde el proxy REST escucha. Lo dejamos solo en loopback porque toda
+# automatización Ansible corre EN el propio VPS.
+chirpstack_rest_api_bind: "127.0.0.1:8090"
+
+# Dónde está el servidor gRPC de ChirpStack (mismo host, puerto 8080).
+chirpstack_rest_api_upstream: "127.0.0.1:8080"
+
+# `insecure: true` porque ChirpStack no tiene TLS habilitado (todo loopback).
+# Si en el futuro pones TLS al gRPC server, cambiar esto a false.
+chirpstack_rest_api_insecure: true

@@ -1,0 +1,56 @@
+---
+# Variables del rol dashboard (despliegue BAREMETAL con Bun + systemd).
+# Los SECRETOS (passwords, JWT) NO viven aquí — están en vault.yml cifrado.
+
+# ─── Repo (privado, clon por SSH con deploy key dedicada) ────────────────────
+dashboard_repo_url: "git@github.com:Alekey01/Dashboard_Cuby_LoRaWAN.git"
+dashboard_repo_branch: "main"
+dashboard_install_dir: "/opt/dashboard"
+dashboard_deploy_key_path: "/root/.ssh/dashboard_deploy_key"
+
+# El repo es un monorepo:
+#   /opt/dashboard/backend/   → server.js (Bun + Express), su propio package.json
+#   /opt/dashboard/frontend/  → Vite + Bun, build a frontend/dist/
+# El backend sirve los estáticos del frontend desde frontend/dist.
+dashboard_backend_dir: "{{ dashboard_install_dir }}/backend"
+dashboard_frontend_dir: "{{ dashboard_install_dir }}/frontend"
+
+# ─── Bun runtime ─────────────────────────────────────────────────────────────
+# Bun NO tiene repo apt oficial todavía. Bajamos el binario release de GitHub
+# y lo dejamos en /opt/bun, con symlink en /usr/local/bin.
+# Para fijar versión exacta cambia "latest" por una tag (ej. "bun-v1.1.45").
+dashboard_bun_version: "latest"
+dashboard_bun_install_dir: "/opt/bun"
+dashboard_bun_bin: "/usr/local/bin/bun"
+
+# ─── Servicio systemd ────────────────────────────────────────────────────────
+dashboard_service_name: "dashboard"
+dashboard_service_user: "dashboard"     # usuario del SO bajo el que corre el proceso
+dashboard_service_group: "dashboard"
+
+# Comando de arranque. Se ejecuta desde dashboard_backend_dir (WorkingDirectory
+# del systemd unit), así que "bun run start" usa el script del package.json
+# del backend.
+dashboard_start_command: "{{ dashboard_bun_bin }} run start"
+
+# ─── Red / puerto del backend ────────────────────────────────────────────────
+dashboard_port: 5015
+
+# ─── ChirpStack y MQTT (corren en el MISMO host) ─────────────────────────────
+# Loopback porque el backend ahora es un proceso del host (antes era un
+# contenedor y usaba host.docker.internal).
+#
+# OJO: el backend usa la API REST estilo v3 (fetch a /api/gateways/...). En
+# ChirpStack v4 el listener :8080 solo expone gRPC + UI; la REST la sirve el
+# binario aparte `chirpstack-rest-api` (rol chirpstack_rest_api) en :8090.
+# Apuntar el dashboard a :8080 da 404 en todas las rutas /api/...
+dashboard_chirpstack_api: "http://127.0.0.1:{{ chirpstack_rest_api_port | default(8090) }}"
+dashboard_mqtt_broker: "mqtt://127.0.0.1:1883"
+
+# ─── BD del dashboard (en el Postgres del sistema, mismo del rol postgresql) ─
+dashboard_pg_host: "127.0.0.1"
+dashboard_pg_port: 5432
+dashboard_pg_db: "cuby_lorawan_db"
+dashboard_pg_user: "alekey"
+# password viene de vault.yml como vault_dashboard_pg_password
+# (ya se "publica" en group_vars como dashboard_pg_password)

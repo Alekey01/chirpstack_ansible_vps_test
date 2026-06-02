@@ -1,0 +1,35 @@
+---
+# Cuando cambia el código, el .env o la unit de systemd, reconstruimos
+# dependencias + frontend y reiniciamos el servicio.
+#
+# Monorepo: backend/ (Bun + Express) y frontend/ (Vite).
+
+- name: dashboard bun install backend
+  ansible.builtin.command:
+    cmd: "{{ dashboard_bun_bin }} install --frozen-lockfile"
+    chdir: "{{ dashboard_backend_dir }}"
+  become: true
+  become_user: "{{ dashboard_service_user }}"
+
+- name: dashboard bun install frontend
+  ansible.builtin.command:
+    cmd: "{{ dashboard_bun_bin }} install --frozen-lockfile"
+    chdir: "{{ dashboard_frontend_dir }}"
+  become: true
+  become_user: "{{ dashboard_service_user }}"
+
+- name: dashboard bun build frontend
+  ansible.builtin.command:
+    cmd: "{{ dashboard_bun_bin }} run build"
+    chdir: "{{ dashboard_frontend_dir }}"
+  become: true
+  become_user: "{{ dashboard_service_user }}"
+
+- name: dashboard systemd reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: dashboard service restart
+  ansible.builtin.systemd:
+    name: "{{ dashboard_service_name }}"
+    state: restarted
