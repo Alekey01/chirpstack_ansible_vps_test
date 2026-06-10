@@ -24,18 +24,20 @@
     fail_msg: "chirpstack_gateways no está definida. Rellénala en inventory/group_vars/chirpstack_servers/gateways.yml"
     quiet: true
 
-- name: "[gateways] Saltar todo el rol si la lista está vacía"
-  ansible.builtin.meta: end_play
-  when: chirpstack_gateways | length == 0
+# OJO: aquí NO se usa `meta: end_play` para saltar el rol con lista vacía.
+# end_play termina el PLAY entero — en site.yml se habría llevado por delante
+# dashboard, nginx y firewall sin ningún error. El salto se hace con la
+# condición `chirpstack_gateways | length > 0` en el bloque de abajo.
 
 # ─── 1-3. Bloque con las llamadas API ─────────────────────────────────────────
 # El `when` del bloque se hereda a todas las tareas internas: si estamos en
-# --check o no hay token, no se ejecuta nada del block.
+# --check, no hay token o la lista está vacía, no se ejecuta nada del block.
 - name: "[gateways] Operaciones contra la API de ChirpStack"
   when:
     - not ansible_check_mode
     - chirpstack_api_token is defined
     - chirpstack_api_token | length > 0
+    - chirpstack_gateways | length > 0
   block:
     # ── 1. Resolver tenant_id por nombre ────────────────────────────────────
     # ChirpStack devuelve { totalCount, result: [{id, name, ...}] }.
@@ -48,15 +50,29 @@
       register: chirpstack_tenants_list
       no_log: true
 
-    - name: "[gateways] Extraer el tenant_id por nombre"
+    # Primero filtramos a una lista y comprobamos que NO está vacía. Si se hace
+    # `| first` directamente sobre una lista vacía, Jinja revienta con un error
+    # críptico antes de que ningún failed_when pueda dar un mensaje útil.
+    - name: "[gateways] Buscar el tenant por nombre"
       ansible.builtin.set_fact:
-        chirpstack_tenant_id: >-
+        chirpstack_tenant_matches: >-
           {{
-            (chirpstack_tenants_list.json.result
-             | selectattr('name', 'equalto', chirpstack_default_tenant)
-             | list | first).id
+            chirpstack_tenants_list.json.result
+            | selectattr('name', 'equalto', chirpstack_default_tenant)
+            | list
           }}
-      failed_when: chirpstack_tenant_id is not defined or chirpstack_tenant_id | length == 0
+
+    - name: "[gateways] Fallar con mensaje claro si el tenant no existe"
+      ansible.builtin.fail:
+        msg: >-
+          No existe ningún tenant llamado "{{ chirpstack_default_tenant }}" en ChirpStack.
+          Tenants disponibles: {{ chirpstack_tenants_list.json.result | map(attribute='name') | list | join(', ') }}.
+          Ajusta `chirpstack_default_tenant` (roles/chirpstack_gateway/defaults/main.yml o group_vars).
+      when: chirpstack_tenant_matches | length == 0
+
+    - name: "[gateways] Extraer el tenant_id"
+      ansible.builtin.set_fact:
+        chirpstack_tenant_id: "{{ (chirpstack_tenant_matches | first).id }}"
 
     - name: "[gateways] Mostrar tenant_id resuelto"
       ansible.builtin.debug:
@@ -110,7 +126,15 @@
           creados ahora {{ chirpstack_gateway_lookup.results
                          | selectattr('status', 'equalto', 404) | list | length }}.
 
-- name: "[gateways] Aviso en check mode"
+- name: "[gateways] Aviso si el rol se saltó"
   ansible.builtin.debug:
-    msg: "Rol chirpstack_gateway saltado: ansible_check_mode=true o no hay token aún."
-  when: ansible_check_mode or chirpstack_api_token is not defined or (chirpstack_api_token | length == 0)
+    msg: >-
+      Rol chirpstack_gateway saltado:
+      {{ 'check mode activo' if ansible_check_mode
+         else ('no hay gateways en chirpstack_gateways' if chirpstack_gateways | length == 0
+         else 'no hay API token disponible') }}.
+  when: >-
+    ansible_check_mode
+    or chirpstack_api_token is not defined
+    or (chirpstack_api_token | length == 0)
+    or (chirpstack_gateways | length == 0)
