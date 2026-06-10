@@ -53,10 +53,14 @@ chirpstack_apt_repo_components: "stable main"
 # Cuando llegue un gateway europeo, volver a "eu868".
 chirpstack_region: "us915_1"
 
-# Secreto que ChirpStack usa para firmar JWTs/sessions de la API.
-# 🔒 PROVISIONAL: cuando todo funcione, generaremos uno random con
-# `openssl rand -base64 32` y lo moveremos a ansible-vault.
-chirpstack_api_secret: "cambia_este_secreto_chirpstack_temporal"
+# Secreto que ChirpStack usa para firmar JWTs/sessions/API keys.
+# Se lee del vault (`vault_chirpstack_api_secret`); si la clave aún no existe
+# en vault.yml, cae al valor temporal INSEGURO (solo aceptable en pruebas):
+#   ansible-vault edit inventory/group_vars/chirpstack_servers/vault.yml
+#   vault_chirpstack_api_secret: "<openssl rand -base64 32>"
+# ⚠ Cambiarlo con ChirpStack en marcha INVALIDA sesiones y API keys existentes
+# (habría que regenerar /etc/chirpstack/.ansible_api_key desde la UI).
+chirpstack_api_secret: "{{ vault_chirpstack_api_secret | default('cambia_este_secreto_chirpstack_temporal') }}"
 
 # ─── Secretos del dashboard ───────────────────────────────────────────────────
 # Los valores reales viven en `vault.yml` (cifrado). Aquí simplemente los

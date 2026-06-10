@@ -1,0 +1,12 @@
+---
+# Colecciones Ansible que necesitan los roles de este proyecto.
+# En una máquina de control nueva, instalarlas UNA vez con:
+#   ansible-galaxy collection install -r requirements.yml
+#
+# Sin esto fallan:
+#   - rol postgresql / dashboard → community.postgresql (postgresql_user, _db, _privs, _ext, _script, _query)
+#   - rol firewall               → community.general (ufw)
+
+collections:
+  - name: community.postgresql
+  - name: community.general

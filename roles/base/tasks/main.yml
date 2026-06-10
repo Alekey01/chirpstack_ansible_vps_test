@@ -9,12 +9,20 @@
 # pero ese atajo está deprecado. Usamos siempre `ansible_facts['xxx']`.
 
 # ─── 1. Salvaguarda: confirmar que estamos en Ubuntu ──────────────────────────
-- name: "[base] Comprobar que la distro es Ubuntu"
+# Destino soportado: Ubuntu — tanto Server como Desktop (probado en 24.04 y
+# 26.04, 64-bit). Ambas ediciones reportan distribution == "Ubuntu", así que el mismo
+# check vale para las dos. No pinamos la versión a propósito (22.04, 24.04, ...
+# son válidas) para no romper si se reinstala el VPS con otra release.
+#
+# macOS NO está soportado como destino: los roles usan apt/systemd/timedatectl
+# (solo Linux) y ChirpStack no publica paquete para macOS. La Mac es únicamente
+# el nodo de control desde el que se LANZA ansible, y este check no corre sobre ella.
+- name: "[base] Comprobar que la distro es Ubuntu (Server o Desktop)"
   ansible.builtin.assert:
     that:
       - ansible_facts['distribution'] == "Ubuntu"
     fail_msg: >-
-      Este playbook está pensado para Ubuntu.
+      Este playbook solo soporta Ubuntu (Server o Desktop, p.ej. 24.04 64-bit).
       Distro detectada: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
     success_msg: >-
       Distro válida: Ubuntu {{ ansible_facts['distribution_version'] }}

@@ -1,14 +1,17 @@
 ---
 # Variables por defecto del rol `postgresql`.
 #
-# ⚠ La contraseña va en claro AQUÍ por simplicidad. Cuando todo funcione,
-# la moveremos a un fichero cifrado con `ansible-vault encrypt`.
-# Para la VPS de pruebas (no expuesta a internet) es aceptable a corto plazo;
-# para el equipo del cliente es OBLIGATORIO cifrarla.
+# La contraseña se lee del vault (`vault_postgresql_db_password`). Si la clave
+# aún no existe en vault.yml, cae al valor temporal INSEGURO — suficiente para
+# una VPS de pruebas, OBLIGATORIO añadirla al vault antes de ir a cliente:
+#   ansible-vault edit inventory/group_vars/chirpstack_servers/vault.yml
+#   vault_postgresql_db_password: "<openssl rand -base64 24>"
+# El mismo run de ansible actualiza el usuario de PG y el chirpstack.toml a la
+# vez, así que el cambio no requiere pasos manuales.
 
 postgresql_db_name: chirpstack
 postgresql_db_user: chirpstack
-postgresql_db_password: "chirpstack_temporal_cambiar"   # 🔒 mover a vault al final
+postgresql_db_password: "{{ vault_postgresql_db_password | default('chirpstack_temporal_cambiar') }}"
 
 # Extensiones que ChirpStack v4 necesita en su BD.
 postgresql_extensions:
