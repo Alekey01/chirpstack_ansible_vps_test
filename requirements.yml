@@ -4,8 +4,8 @@
 #   ansible-galaxy collection install -r requirements.yml
 #
 # Sin esto fallan:
-#   - rol postgresql / dashboard → community.postgresql (postgresql_user, _db, _privs, _ext, _script, _query)
-#   - rol firewall               → community.general (ufw)
+#   - rol postgresql → community.postgresql (postgresql_user, _db, _privs, _ext)
+#   - rol firewall   → community.general (ufw)
 
 collections:
   - name: community.postgresql

@@ -40,24 +40,11 @@ ansible-playbook playbooks/ping.yml
 ansible-playbook playbooks/chirpstack.yml
 
 # Stack ChirpStack COMPLETO (REST API + registro de gateways + nginx + firewall)
-# NO incluye el dashboard: es un componente aparte (ver abajo).
 ansible-playbook playbooks/site.yml
 
 # Solo una parte, por tags
 ansible-playbook playbooks/site.yml --tags gateways
-
-# Dashboard (OPCIONAL, independiente — requiere site.yml ya desplegado)
-ansible-playbook playbooks/dashboard.yml
 ```
-
-### El dashboard es independiente
-
-El dashboard **no** forma parte de `site.yml`; era una pieza opcional para ver
-en acción la API key/REST de ChirpStack. Se despliega por separado con
-`playbooks/dashboard.yml`, que además activa el bloque `/dashboard/` en nginx
-(en `site.yml` ese bloque no se renderiza). Si tras desplegar el dashboard
-vuelves a correr `site.yml` y quieres conservar la ruta `/dashboard/`, pon
-`nginx_enable_dashboard: true` en group_vars.
 
 Tras el despliegue: UI de ChirpStack en `http://<IP-del-VPS>/` (ojo: con
 `http://` explícito — no hay HTTPS todavía). Login inicial `admin/admin`:
@@ -68,8 +55,6 @@ Tras el despliegue: UI de ChirpStack en `http://<IP-del-VPS>/` (ojo: con
 1. **API key de admin** (la necesita el rol `chirpstack_gateway`): créala en la
    UI → API Keys y pégala en `/etc/chirpstack/.ansible_api_key` (mode 0600).
    El rol `chirpstack_api_key` falla con instrucciones detalladas si falta.
-2. **Deploy key del dashboard**: el rol `dashboard` la genera y te la muestra
-   para añadirla en GitHub (Settings → Deploy keys del repo del dashboard).
 
 ## Secretos
 
@@ -79,14 +64,11 @@ Los secretos viven cifrados en `inventory/group_vars/chirpstack_servers/vault.ym
 ansible-vault edit inventory/group_vars/chirpstack_servers/vault.yml
 ```
 
-Claves soportadas (las dos últimas son opcionales: si no existen se usa un
-valor temporal INSEGURO, válido solo para pruebas):
+Claves soportadas (ambas son opcionales: si no existen se usa un valor
+temporal INSEGURO, válido solo para pruebas):
 
 | Clave | Usada por |
 |---|---|
-| `vault_dashboard_pg_password` | BD del dashboard |
-| `vault_dashboard_gateway_id` | dashboard (.env) |
-| `vault_dashboard_chirpstack_jwt` | dashboard → API ChirpStack |
 | `vault_postgresql_db_password` | BD de ChirpStack (genera con `openssl rand -base64 24`) |
 | `vault_chirpstack_api_secret` | firma de JWT/API keys de ChirpStack (`openssl rand -base64 32`) |
 

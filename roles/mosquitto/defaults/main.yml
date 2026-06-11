@@ -1,10 +1,9 @@
 ---
 # Variables por defecto del rol `mosquitto`.
 #
-# Antes hacía bind a 0.0.0.0 para que los contenedores Docker del dashboard
-# pudieran llegar vía host.docker.internal. Ahora todos los clientes
-# (gateway-bridge, chirpstack server, dashboard backend) viven en el mismo
-# host como procesos baremetal, así que basta con loopback.
+# Todos los clientes (gateway-bridge y el servidor chirpstack) viven en el mismo
+# host como procesos baremetal, así que el broker basta con que escuche en
+# loopback — no necesita exponerse a la red.
 
 mosquitto_listener_port: 1883
 mosquitto_bind_address: "127.0.0.1"

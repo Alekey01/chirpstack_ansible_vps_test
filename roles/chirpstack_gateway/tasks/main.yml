@@ -14,7 +14,7 @@
 #
 # En `--check`: TODAS las llamadas API se saltan (no hay token simulable, los
 # POST no se ejecutan). El rol queda como "skipped" y los siguientes roles
-# (dashboard, nginx, firewall) corren normalmente.
+# (nginx, firewall) corren normalmente.
 
 # ─── 0. Sanity check ──────────────────────────────────────────────────────────
 - name: "[gateways] Validar que hay gateways definidos"
@@ -26,8 +26,8 @@
 
 # OJO: aquí NO se usa `meta: end_play` para saltar el rol con lista vacía.
 # end_play termina el PLAY entero — en site.yml se habría llevado por delante
-# dashboard, nginx y firewall sin ningún error. El salto se hace con la
-# condición `chirpstack_gateways | length > 0` en el bloque de abajo.
+# nginx y firewall sin ningún error. El salto se hace con la condición
+# `chirpstack_gateways | length > 0` en el bloque de abajo.
 
 # ─── 1-3. Bloque con las llamadas API ─────────────────────────────────────────
 # El `when` del bloque se hereda a todas las tareas internas: si estamos en

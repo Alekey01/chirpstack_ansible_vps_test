@@ -1,11 +1,7 @@
 {#
   /etc/nginx/sites-available/chirpstack.conf
-  Reverse proxy de nginx delante de ChirpStack (y, opcionalmente, del Dashboard).
+  Reverse proxy de nginx delante de ChirpStack.
   Generado por Ansible — no editar a mano.
-
-  El bloque /dashboard/ solo se renderiza si `nginx_enable_dashboard` es true.
-  El playbook dashboard.yml lo activa; site.yml/chirpstack.yml lo dejan fuera
-  para que la config sea ChirpStack puro (sin apuntar a un backend inexistente).
 #}
 server {
     listen {{ nginx_listen_port }} default_server;
@@ -14,29 +10,6 @@ server {
 
     # ChirpStack v4 puede manejar uploads grandes (region.toml, integraciones...).
     client_max_body_size 50m;
-{% if nginx_enable_dashboard | default(false) %}
-
-    # ── Dashboard Cuby LoRaWAN ────────────────────────────────────────
-    # Montado bajo /dashboard/. El frontend está construido con base /dashboard/
-    # y las llamadas al API van a /dashboard/api/..., así que nginx solo tiene
-    # que strippear el prefijo (proxy_pass con barra final) y el backend recibe
-    # las URLs como si viviera en la raíz.
-    location /dashboard/ {
-        proxy_pass http://127.0.0.1:{{ dashboard_port | default(5015) }}/;
-
-        proxy_http_version 1.1;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # El dashboard usa Server-Sent Events en /api/stream — buffering OFF
-        # para que los eventos lleguen al navegador en cuanto el backend los emite.
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 3600s;
-    }
-{% endif %}
 
     # ── ChirpStack (raíz) ─────────────────────────────────────────────
     # gRPC-Web (lo que usa la UI de ChirpStack) viaja sobre HTTP/1.1 con

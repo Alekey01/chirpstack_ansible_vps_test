@@ -1,7 +1,6 @@
 ---
 # Playbook "SOLO CHIRPSTACK": despliega únicamente el núcleo de ChirpStack
-# + nginx como reverse proxy, SIN el dashboard ni el firewall ni el alta
-# de gateways por API.
+# + nginx como reverse proxy, SIN el firewall ni el alta de gateways por API.
 #
 # Úsalo para validar que la instalación de ChirpStack es correcta de forma
 # aislada (p.ej. tras reinstalar la VPS), antes de añadir el resto del stack.
@@ -9,13 +8,13 @@
 # Ejecutar (desde la Mac, en la raíz del proyecto):
 #   ansible-playbook playbooks/chirpstack.yml
 #
-# Cuando ChirpStack esté validado, el despliegue COMPLETO (incluido dashboard,
-# firewall y registro de gateways) sigue estando en playbooks/site.yml.
+# Cuando ChirpStack esté validado, el despliegue COMPLETO (firewall y registro
+# de gateways) sigue estando en playbooks/site.yml.
 #
 # El ORDEN importa: ChirpStack necesita Postgres, Redis y Mosquitto arriba
 # antes de arrancar. nginx va al final, delante de todo.
 
-- name: Desplegar SOLO ChirpStack (núcleo + nginx, sin dashboard)
+- name: Desplegar SOLO ChirpStack (núcleo + nginx)
   hosts: chirpstack_servers
   gather_facts: true        # los roles usan datos del SO (versión Ubuntu, etc.)
   roles:
@@ -38,7 +37,5 @@
       tags: [chirpstack, app]
 
     # Reverse proxy en :80 → ChirpStack en 127.0.0.1:8080.
-    # OJO: su template incluye un location /dashboard/ que apunta a un backend
-    # que aquí NO instalamos. nginx arranca igual; solo /dashboard/ daría 502.
     - role: nginx
       tags: [nginx, proxy]

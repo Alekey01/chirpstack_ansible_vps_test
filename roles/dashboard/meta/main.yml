@@ -1,6 +1,0 @@
----
-# Ya no depende de docker (deploy baremetal con Bun + systemd).
-# Requiere postgresql (donde vive su BD) — no lo declaramos aquí porque ya
-# corre antes en site.yml, y forzarlo como dep haría que se ejecute también
-# cuando se lance solo `--tags dashboard`, lo cual es deseable pero pesado.
-dependencies: []
