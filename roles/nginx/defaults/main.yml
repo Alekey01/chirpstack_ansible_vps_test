@@ -11,3 +11,10 @@ nginx_server_name: "_"
 # A dónde pasa las peticiones nginx por dentro. Construido a partir de las
 # variables del rol chirpstack (que viven en group_vars).
 nginx_proxy_target: "http://{{ chirpstack_bind_address }}:{{ chirpstack_puerto_web }}"
+
+# ¿Renderizar el bloque reverse-proxy /dashboard/?
+# false  → config ChirpStack pura (site.yml / chirpstack.yml).
+# true   → añade /dashboard/ → backend del dashboard (lo activa dashboard.yml).
+# Si despliegas el dashboard y luego vuelves a correr site.yml, pon esto a true
+# en group_vars para que nginx conserve la ruta /dashboard/.
+nginx_enable_dashboard: false

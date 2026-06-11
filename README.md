@@ -36,15 +36,28 @@ chmod 600 ~/.ansible_vault_pass
 # Probar conectividad
 ansible-playbook playbooks/ping.yml
 
-# SOLO el núcleo ChirpStack + nginx (sin dashboard, sin firewall)
+# SOLO el núcleo ChirpStack + nginx (sin REST API, sin gateways, sin firewall)
 ansible-playbook playbooks/chirpstack.yml
 
-# Stack COMPLETO (incluye registro de gateways, dashboard, firewall)
+# Stack ChirpStack COMPLETO (REST API + registro de gateways + nginx + firewall)
+# NO incluye el dashboard: es un componente aparte (ver abajo).
 ansible-playbook playbooks/site.yml
 
 # Solo una parte, por tags
 ansible-playbook playbooks/site.yml --tags gateways
+
+# Dashboard (OPCIONAL, independiente — requiere site.yml ya desplegado)
+ansible-playbook playbooks/dashboard.yml
 ```
+
+### El dashboard es independiente
+
+El dashboard **no** forma parte de `site.yml`; era una pieza opcional para ver
+en acción la API key/REST de ChirpStack. Se despliega por separado con
+`playbooks/dashboard.yml`, que además activa el bloque `/dashboard/` en nginx
+(en `site.yml` ese bloque no se renderiza). Si tras desplegar el dashboard
+vuelves a correr `site.yml` y quieres conservar la ruta `/dashboard/`, pon
+`nginx_enable_dashboard: true` en group_vars.
 
 Tras el despliegue: UI de ChirpStack en `http://<IP-del-VPS>/` (ojo: con
 `http://` explícito — no hay HTTPS todavía). Login inicial `admin/admin`:

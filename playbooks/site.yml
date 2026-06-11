@@ -10,6 +10,10 @@
 #
 # El ORDEN de los roles importa: ChirpStack necesita Postgres, Redis y Mosquitto
 # funcionando antes de arrancar.
+#
+# NOTA: el DASHBOARD está fuera de este playbook a propósito. Es un componente
+# independiente; se despliega aparte con `ansible-playbook playbooks/dashboard.yml`.
+# Aquí solo vive el stack ChirpStack (incluida su API REST y el alta de gateways).
 
 - name: Desplegar stack ChirpStack
   hosts: chirpstack_servers
@@ -45,9 +49,6 @@
     # Alta de gateways en ChirpStack desde inventory/group_vars/.../gateways.yml.
     - role: chirpstack_gateway
       tags: [chirpstack_gateway, gateways]
-
-    - role: dashboard
-      tags: [dashboard]
 
     - role: nginx
       tags: [nginx, proxy]

@@ -1,0 +1,34 @@
+---
+# Playbook INDEPENDIENTE del Dashboard Cuby LoRaWAN (baremetal: Bun + systemd).
+#
+# El dashboard NO forma parte del despliegue de ChirpStack (site.yml). Vive
+# aquí, separado, porque es un componente opcional construido sobre ChirpStack
+# (lo usábamos para ver en acción la API key / REST).
+#
+# REQUISITO PREVIO: el stack ChirpStack ya debe estar desplegado en el host
+# (al menos `ansible-playbook playbooks/site.yml`), porque el dashboard:
+#   - usa el PostgreSQL del sistema (rol postgresql) para su propia BD,
+#   - habla con la API REST de ChirpStack en 127.0.0.1:8090 (rol chirpstack_rest_api),
+#   - lee/usa una API key de admin (rol chirpstack_api_key).
+#
+# Ejecutar (desde la raíz del proyecto):
+#   ansible-playbook playbooks/dashboard.yml
+#
+# Pasos manuales que pedirá la primera vez: añadir la deploy key del repo a
+# GitHub (la muestra el rol) y tener la API key en /etc/chirpstack/.ansible_api_key.
+
+- name: Desplegar el Dashboard (independiente de ChirpStack)
+  hosts: chirpstack_servers
+  gather_facts: true
+  vars:
+    # Activa el bloque reverse-proxy /dashboard/ en nginx (off por defecto en
+    # site.yml). Así la UI del dashboard queda accesible en http://<vps>/dashboard/.
+    nginx_enable_dashboard: true
+  roles:
+    - role: dashboard
+      tags: [dashboard]
+
+    # Re-render de nginx para añadir la ruta /dashboard/ (idempotente: si la
+    # raíz de ChirpStack ya estaba, solo añade el location nuevo).
+    - role: nginx
+      tags: [nginx, proxy]
