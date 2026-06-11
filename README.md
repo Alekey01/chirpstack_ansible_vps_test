@@ -14,15 +14,10 @@ brew install ansible sshpass          # macOS
 
 # 2. Colecciones que usan los roles (una sola vez)
 ansible-galaxy collection install -r requirements.yml
-
-# 3. Passphrase del vault (una sola vez; pídela al responsable del proyecto)
-echo 'la-passphrase-del-vault' > ~/.ansible_vault_pass
-chmod 600 ~/.ansible_vault_pass
 ```
 
-> Sin `~/.ansible_vault_pass` **ningún playbook arranca** (el inventario carga
-> `vault.yml`, que está cifrado). Alternativa: comenta `vault_password_file`
-> en `ansible.cfg` y ejecuta con `--ask-vault-pass`.
+> No hace falta passphrase de vault: actualmente no hay ficheros cifrados.
+> Las contraseñas usan valores temporales inseguros (ver **Secretos** abajo).
 
 ## Requisitos del servidor destino
 
@@ -58,24 +53,38 @@ Tras el despliegue: UI de ChirpStack en `http://<IP-del-VPS>/` (ojo: con
 
 ## Secretos
 
-Los secretos viven cifrados en `inventory/group_vars/chirpstack_servers/vault.yml`:
+⚠ **Por defecto NO hay vault**: la contraseña de Postgres y el `api_secret` de
+ChirpStack usan valores temporales **INSEGUROS**, suficientes para una VPS de
+pruebas pero NO para producción.
+
+Para endurecerlos, crea un vault con estas dos claves:
 
 ```bash
-ansible-vault edit inventory/group_vars/chirpstack_servers/vault.yml
+# 1. Crear el fichero cifrado (te pide una passphrase nueva)
+ansible-vault create inventory/group_vars/chirpstack_servers/vault.yml
 ```
 
-Claves soportadas (ambas son opcionales: si no existen se usa un valor
-temporal INSEGURO, válido solo para pruebas):
+Contenido del vault:
 
-| Clave | Usada por |
-|---|---|
-| `vault_postgresql_db_password` | BD de ChirpStack (genera con `openssl rand -base64 24`) |
-| `vault_chirpstack_api_secret` | firma de JWT/API keys de ChirpStack (`openssl rand -base64 32`) |
+```yaml
+vault_postgresql_db_password: "<openssl rand -base64 24>"
+vault_chirpstack_api_secret:  "<openssl rand -base64 32>"
+```
 
-⚠ Si cambias `vault_chirpstack_api_secret` con ChirpStack ya en marcha, se
-invalidan las sesiones y **las API keys existentes** (habría que regenerar
-`/etc/chirpstack/.ansible_api_key`). Si cambias la password de Postgres, el
-mismo run actualiza usuario y `chirpstack.toml` a la vez — sin acción manual.
+```bash
+# 2. Guardar la passphrase y reactivar su uso automático
+echo 'tu-passphrase' > ~/.ansible_vault_pass && chmod 600 ~/.ansible_vault_pass
+# 3. Descomentar `vault_password_file` en ansible.cfg
+```
+
+`vars.yml` y el rol postgresql ya referencian esas claves con fallback, así que
+en cuanto existan se usan solas (sin tocar nada más).
+
+⚠ Cambiar `vault_chirpstack_api_secret` con ChirpStack ya en marcha invalida las
+sesiones y **las API keys existentes** (habría que regenerar
+`/etc/chirpstack/.ansible_api_key`). Hazlo **antes** de crear la API key de admin.
+Cambiar la password de Postgres sí es seguro: el mismo run actualiza el usuario
+y `chirpstack.toml` a la vez.
 
 ## Errores frecuentes
 
